@@ -1,18 +1,22 @@
 # Baobab Ridge Wildlife Rehabilitation Records System
 
-PRG2782 Project 2026. The GitHub repository is currently named `PRG281-Project`.
+PRG2782 Project 2026. The GitHub repository is named `PRG281-Project`.
 
-## Framework status
+## Current status
 
-This is an **AI-assisted learning scaffold for Member 3**, not a completed project or submission. Review it, understand it and follow your lecturer's rules on permitted assistance. The brief says submitting AI-generated code or text as your own is misconduct. This scaffold does not establish assessed contribution or satisfy the three-day commit requirement.
+**Member 3's Update feature saves to the real animals.txt file.** Search by ID or click a row, change an animal's details and click Save Changes. The file is updated, the grid reloads and the form returns to Add mode. Closing and reopening the application keeps saved changes.
 
-The Windows Forms application targets .NET 8 and uses no storage packages. It starts in **practice mode**: three example animals are held in memory. Click a row or search by ID, edit values, save a practice change and clear the editor. Closing the app discards these changes. Practice data is not the required starter `animals.txt`.
+The project also contains the shared model/rules, basic file loading and eight sample records needed to run and test Update. Add, Delete and Summary are still the other members' work. The Add button currently explains that it has not been implemented.
 
-**Real file loading, appending, updating and deleting are deliberately unfinished.** Their methods throw explanatory exceptions handled by the form. Add displays an integration message. Delete and Summary controls still need to be created by Member 4.
+This is AI-assisted code. Review and understand it and follow the lecturer's rules on permitted assistance and attribution. It is not a claim of independently completed assessed work.
 
 ## Build and run
 
-On Windows, use Visual Studio with the .NET desktop development workload and .NET 8 support (or a compatible newer SDK). Switch to `feature/update-animal` while the draft is under review. Open `BaobabRidge.sln`, set `BaobabRidge` as startup project, build and press F5.
+Use Windows and Visual Studio with the .NET desktop development workload and .NET 8 support (or a compatible newer SDK).
+
+1. Clone or pull `main`.
+2. Open `BaobabRidge.sln`.
+3. Set `BaobabRidge` as the startup project and press F5.
 
 From the repository folder:
 
@@ -22,47 +26,55 @@ dotnet run --project BaobabRidge
 dotnet run --project FrameworkChecks
 ```
 
-After implementing the production repository methods, run file mode:
+There is no practice mode or `--file` switch anymore. The program always uses `animals.txt` beside its executable. The starter file is copied there with **Copy if newer**.
 
-```powershell
-dotnet run --project BaobabRidge -- --file
-```
+## Simple code structure
 
-Before submission, make file mode the default and remove the temporary practice adapter.
+| File | Purpose |
+| --- | --- |
+| `Animal.cs` | Normal class with properties, constructor and a pipe-delimited ToString method |
+| `AnimalRules.cs` | Shared validation and one if/else classification method |
+| `FileHandler.cs` | ReadAnimals, parsing and safe UpdateAnimal file rewriting |
+| `MainForm.cs` | Named button/grid events, input boxes, form state and friendly messages |
+| `MainForm.Designer.cs` | Control layout and event connections |
+| `Program.cs` | Starts the form |
 
-## Team details to complete
+The structure follows the class, List, FileHandler and text-file examples in the saved lecture materials. See [coding references](docs/CODING-STYLE.md). The application uses explicit types, ordinary methods and loops; it has no repository interface, records, lambda handlers or LINQ.
+
+## Feature ownership
+
+| Owner | Current support | Work still to complete |
+| --- | --- | --- |
+| Member 1 | Animal model, shared validation/classification, labelled inputs | Review shared rules; implement Add, uniqueness and append-only saving |
+| Member 2 | Basic loading, grid, skipped-line notice, sample data and file-error messages | Review View/loading/error handling and extend the team's checks |
+| Member 3 | Search, grid selection, edit state, validation and real file update | Understand the code, rehearse the demo and integrate with other features |
+| Member 4 | Shared data access and UI helpers available | Implement Delete and Summary; finish team documentation |
+
+## Team details
 
 | Role | Name | Student number |
 | --- | --- | --- |
-| Member 1: model, shared rules, Add | TO COMPLETE | TO COMPLETE |
-| Member 2: View, loading, errors, starter data | TO COMPLETE | TO COMPLETE |
-| Member 3: Update | TO COMPLETE | TO COMPLETE |
-| Member 4: Delete, Summary, documentation | TO COMPLETE | TO COMPLETE |
-
-## Feature status
-
-| Feature | Present | Remaining |
-| --- | --- | --- |
-| Add | Labelled inputs and integration button | Uniqueness, append, success flow |
-| View | Read-only grid, exact columns, refresh hook, practice data | UTF-8 loader, skipped lines, missing file, starter records |
-| Update | Search, edit state, shared validation, practice save | Safe file rewrite and file-based verification |
-| Delete | Repository contract | Selection, confirmation, removal, editor reset |
-| Summary | Integration guidance | Controls, calculations, exact report output |
+| Member 1 | TO COMPLETE | TO COMPLETE |
+| Member 2 | TO COMPLETE | TO COMPLETE |
+| Member 3 | TO COMPLETE | TO COMPLETE |
+| Member 4 | TO COMPLETE | TO COMPLETE |
 
 ## File formats
 
-`animals.txt` belongs beside the executable and uses UTF-8, no header and no blank lines. Fields are `ID|Name|Species|Age|Score|Status|Housing Unit`, one record per line. Member 2 must add `BaobabRidge/animals.txt` with at least eight valid records spanning at least four statuses. The project already specifies Copy if newer (`PreserveNewest`) for that future file.
+`animals.txt` is UTF-8 with seven pipe-separated fields per line, no header:
+`ID|Name|Species|Age|Score|Status|Housing Unit`.
+The starter file has eight fictional animals covering all five statuses. Loading skips malformed lines and reports their total once. Updates preserve unrelated lines, including malformed lines, and replace only the target record.
 
-`summary.txt` is generated beside the executable, overwritten for every report and excluded from Git. Follow brief section 5.2 exactly: `yyyy-MM-dd HH:mm`, invariant-culture two-decimal averages, all five statuses, and `N/A` averages for an empty file.
+`summary.txt` is still to be implemented by Member 4. It must be generated beside the executable, overwritten each time, and use the exact brief section 5.2 layout: `yyyy-MM-dd HH:mm`, invariant-culture two-decimal averages, all five status counts and `N/A` averages for empty data. It is excluded from Git.
 
-## Start here
+## Validation and limitations
 
-- [Member 3 completion guide](docs/MEMBER-3.md)
-- [Team integration contract](docs/INTEGRATION.md)
-- [Acceptance checklist](docs/ACCEPTANCE.md)
+The checks exercise real temporary files, classification boundaries, invalid input, first/middle/last record preservation, reopening, missing/duplicate IDs, malformed lines, read-only files, a Windows replacement lock and real form events. See [acceptance checks](docs/ACCEPTANCE.md).
 
-## Git requirements still to satisfy
+This is a single-user text-file application. Saving rereads current data, but simultaneous writers during the read/replace operation are not supported. Close other writers while saving. A locked file produces a friendly error. The temporary-file replacement protects the original against a failed write; it is not a multi-user database transaction.
 
-The repository's existing first commit contains only a README; the brief asks for a blank WinForms project, `.gitignore` and README in that first commit. This scaffold preserves existing history. Ask the lecturer how to handle that discrepancy; do not rewrite history to pretend it began differently.
+## Team workflow
 
-The brief requires one branch for each of the five features. Member 4 should use separate `feature/delete-animal` and `feature/summary-report` branches and PRs. The team needs at least 15 meaningful commits overall, at least three per member, work across at least three actual days and a merged PR per member. Three commits each from four members total only 12. Use actual dates and correct contributor identities; do not backdate commits. Keep `main` buildable and merge reviewed work through PRs.
+Read [Member 3's guide](docs/MEMBER-3.md) and [integration notes](docs/INTEGRATION.md). This simplification was requested directly on `main`. Future assessed feature work should still follow the brief's feature-branch/PR requirements. Delete and Summary need separate feature branches even if Member 4 owns both.
+
+The team needs at least 15 meaningful commits overall, at least three per member and work on at least three actual days, plus a merged PR per member. Four members making three commits each is only 12. Use correct identities and real dates. The existing first commit has only a README rather than the blank-project setup described in the brief; preserve history and clarify that discrepancy with the lecturer.

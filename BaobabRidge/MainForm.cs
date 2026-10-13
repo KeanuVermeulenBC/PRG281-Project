@@ -1,144 +1,262 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Windows.Forms;
 
-namespace BaobabRidge;
-
-public sealed partial class MainForm : Form
+namespace BaobabRidge
 {
-    private readonly IAnimalRepository repository;
-    private string? editingId;
-    private readonly bool practiceMode;
-
-    // Builds the shared form and wires Member 3's editing workflow.
-    public MainForm(IAnimalRepository repository, bool practiceMode)
+    public partial class MainForm : Form
     {
-        this.repository = repository;
-        this.practiceMode = practiceMode;
-        InitializeComponent();
-        lblMode.Text = practiceMode
-            ? "PRACTICE MODE - edits are in memory only and reset when you close the app."
-            : "FILE MODE - production repository methods must be completed by the team.";
-        Shown += (_, _) => RunFileAction(RefreshAnimals);
-        gridAnimals.CellClick += (_, e) =>
+        private FileHandler fileHandler;
+        private string editingId = string.Empty;
+        private int skippedLines;
+
+        // Opens the normal application using animals.txt beside the executable.
+        public MainForm() : this(new FileHandler())
         {
-            if (e.RowIndex >= 0 && gridAnimals.Rows[e.RowIndex].DataBoundItem is Animal animal)
-                LoadForEditing(animal);
-        };
-        btnSearch.Click += (_, _) => SearchAnimal();
-        btnSaveChanges.Click += (_, _) => SaveChanges();
-        btnClear.Click += (_, _) => ClearEditor();
-        btnRefresh.Click += (_, _) => RunFileAction(RefreshAnimals);
-        btnAdd.Click += (_, _) => MessageBox.Show(this, "Member 1: connect Add here using AnimalRules.TryCreate, repository.Add, RefreshAnimals and ClearEditor.");
-        ClearEditor();
-    }
+        }
 
-    // Reloads a fresh snapshot, with no duplicate rows or implicit selection/editing.
-    private void RefreshAnimals()
-    {
-        AnimalLoadResult result = repository.Load();
-        gridAnimals.DataSource = result.Animals.ToList();
-        gridAnimals.ClearSelection();
-        gridAnimals.CurrentCell = null;
-        if (result.SkippedLines > 0)
-            MessageBox.Show(this, $"Skipped {result.SkippedLines} malformed line(s).", "Load animals");
-    }
-
-    // Finds an exact ID from the current repository; a failed search leaves the editor unchanged.
-    private void SearchAnimal()
-    {
-        RunFileAction(() =>
+        // Allows automated checks to open the same form using a temporary data file.
+        public MainForm(FileHandler fileHandler)
         {
-            string id = txtSearchId.Text.Trim();
-            if (id.Length == 0)
+            this.fileHandler = fileHandler;
+            InitializeComponent();
+        }
+
+        // Starts in Add mode and loads the current file into the grid.
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            ClearEditor();
+            RefreshAnimals();
+        }
+
+        // Reloads records without adding duplicate grid rows; returns false if reading fails.
+        private bool RefreshAnimals()
+        {
+            try
             {
-                MessageBox.Show(this, "Enter an Animal ID to search for.");
+                List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+                gridAnimals.DataSource = animals;
+                gridAnimals.ClearSelection();
+                gridAnimals.CurrentCell = null;
+                ShowMessage("Loaded " + animals.Count + " animals." + SkippedMessage());
+                return true;
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+            }
+            return false;
+        }
+
+        // Reloads the grid without discarding unsaved editor values.
+        private void btnRefresh_Click(object sender, EventArgs e)
+        {
+            RefreshAnimals();
+        }
+
+        // Loads the clicked animal into the common editor.
+        private void gridAnimals_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                Animal animal = gridAnimals.Rows[e.RowIndex].DataBoundItem as Animal;
+                if (animal != null)
+                {
+                    LoadForEditing(animal);
+                    ShowMessage("Editing " + animal.Id + ".");
+                }
+            }
+        }
+
+        // Uses a foreach loop to find one exact ID, ignoring upper/lower case.
+        private void btnSearch_Click(object sender, EventArgs e)
+        {
+            string searchId = txtSearchId.Text.Trim();
+            if (searchId == string.Empty)
+            {
+                ShowMessage("Enter an Animal ID to search for.");
                 txtSearchId.Focus();
                 return;
             }
-            Animal? animal = repository.Load().Animals.FirstOrDefault(a =>
-                string.Equals(a.Id, id, StringComparison.OrdinalIgnoreCase));
-            if (animal == null)
+
+            try
             {
-                MessageBox.Show(this, $"Animal ID {id} was not found.");
+                List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+                foreach (Animal animal in animals)
+                {
+                    if (string.Equals(animal.Id, searchId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        LoadForEditing(animal);
+                        ShowMessage("Editing " + animal.Id + "." + SkippedMessage());
+                        return;
+                    }
+                }
+                // Do not clear or replace the current editor when there is no exact match.
+                ShowMessage("Animal ID " + searchId + " was not found." + SkippedMessage());
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+            }
+        }
+
+        // Makes grid selection and ID search use the same input boxes and form state.
+        private void LoadForEditing(Animal animal)
+        {
+            editingId = animal.Id;
+            txtId.Text = animal.Id;
+            txtName.Text = animal.Name;
+            txtSpecies.Text = animal.Species;
+            txtAge.Text = animal.Age.ToString(CultureInfo.InvariantCulture);
+            txtRecoveryScore.Text = animal.RecoveryScore.ToString(CultureInfo.InvariantCulture);
+            lblClassification.Text = animal.Status + " | " + animal.HousingUnit;
+            txtId.ReadOnly = true;
+            btnAdd.Enabled = false;
+            btnSaveChanges.Enabled = true;
+            txtName.Focus();
+        }
+
+        // Validates the edit, saves it to the real file and returns to Add mode after success.
+        private void btnSaveChanges_Click(object sender, EventArgs e)
+        {
+            if (editingId == string.Empty)
+            {
+                ShowMessage("Select or search for an animal before saving.");
                 return;
             }
-            LoadForEditing(animal);
-        });
-    }
 
-    // Sends either a clicked row or a search result to the same input boxes and edit state.
-    private void LoadForEditing(Animal animal)
-    {
-        editingId = animal.Id;
-        txtId.Text = animal.Id;
-        txtName.Text = animal.Name;
-        txtSpecies.Text = animal.Species;
-        txtAge.Text = animal.Age.ToString(CultureInfo.InvariantCulture);
-        txtRecoveryScore.Text = animal.RecoveryScore.ToString(CultureInfo.InvariantCulture);
-        lblClassification.Text = $"{animal.Status} | {animal.HousingUnit}";
-        txtId.ReadOnly = true;
-        btnAdd.Enabled = false;
-        btnSaveChanges.Enabled = true;
-        txtName.Focus();
-    }
-
-    // Validates through Member 1's shared method and delegates storage to Member 3's adapter.
-    private void SaveChanges()
-    {
-        if (editingId == null)
-        {
-            MessageBox.Show(this, "Select or search for an animal before saving.");
-            return;
-        }
-        // Use the original ID as identity, never an editable textbox or a grid row number.
-        var input = new AnimalInput(editingId, txtName.Text, txtSpecies.Text, txtAge.Text, txtRecoveryScore.Text);
-        if (!AnimalRules.TryCreate(input, out Animal? updated, out ValidationIssue? issue))
-        {
-            MessageBox.Show(this, issue!.Message, "Check your input");
-            Control field = issue.Field switch
+            Animal updatedAnimal;
+            string invalidField;
+            string errorMessage;
+            // The stored original ID is the identity, even if a textbox is changed by other code.
+            if (!AnimalRules.TryCreate(editingId, txtName.Text, txtSpecies.Text,
+                txtAge.Text, txtRecoveryScore.Text, out updatedAnimal, out invalidField, out errorMessage))
             {
-                "Id" => txtId, "Name" => txtName, "Species" => txtSpecies,
-                "Age" => txtAge, _ => txtRecoveryScore
-            };
-            field.Focus();
-            return;
+                ShowMessage(errorMessage);
+                FocusField(invalidField);
+                return;
+            }
+
+            try
+            {
+                fileHandler.UpdateAnimal(editingId, updatedAnimal);
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                ShowMessage(ex.Message);
+                return;
+            }
+
+            // Clear only after saving succeeded; failed writes leave the edit available to retry.
+            ClearEditor();
+            if (RefreshAnimals())
+            {
+                ShowMessage("Saved " + updatedAnimal.Id + ": " + updatedAnimal.Status
+                    + " | " + updatedAnimal.HousingUnit + "." + SkippedMessage());
+            }
+            else
+            {
+                ShowMessage("The update was saved, but the grid could not reload. Check the file and click Reload.");
+            }
         }
-        if (!RunFileAction(() => repository.Update(editingId, updated!))) return;
-        ClearEditor();
-        // Report refresh failure separately: the storage operation has already succeeded.
-        if (!RunFileAction(RefreshAnimals))
+
+        // Clears the editor without writing anything to the file.
+        private void btnClear_Click(object sender, EventArgs e)
         {
-            MessageBox.Show(this, "The update was saved, but the grid could not reload. Click Reload when the file is available.");
-            return;
+            ClearEditor();
+            ShowMessage("Editor cleared. Select an animal or search by Animal ID.");
         }
-        string scope = practiceMode ? "Updated for practice only (not saved to disk)." : "Animal updated.";
-        MessageBox.Show(this, $"{scope}\n{updated!.Status} | {updated.HousingUnit}");
-    }
 
-    // Returns to Add mode with empty inputs; Member 1 and Member 4 reuse this after changes.
-    private void ClearEditor()
-    {
-        editingId = null;
-        foreach (TextBox field in new[] { txtId, txtName, txtSpecies, txtAge, txtRecoveryScore, txtSearchId })
-            field.Clear();
-        txtId.ReadOnly = false;
-        btnAdd.Enabled = true;
-        btnSaveChanges.Enabled = false;
-        lblClassification.Text = "Status and housing are calculated from the recovery score.";
-        gridAnimals.ClearSelection();
-        gridAnimals.CurrentCell = null;
-        txtId.Focus();
-    }
+        // Returns to Add mode; Add and Delete can reuse this after successful changes.
+        private void ClearEditor()
+        {
+            editingId = string.Empty;
+            txtId.Clear();
+            txtName.Clear();
+            txtSpecies.Clear();
+            txtAge.Clear();
+            txtRecoveryScore.Clear();
+            txtSearchId.Clear();
+            txtId.ReadOnly = false;
+            btnAdd.Enabled = true;
+            btnSaveChanges.Enabled = false;
+            lblClassification.Text = "Status and housing are calculated from the recovery score.";
+            gridAnimals.ClearSelection();
+            gridAnimals.CurrentCell = null;
+            txtId.Focus();
+        }
 
-    // Keeps expected storage errors and unfinished framework hooks from crashing the form.
-    private bool RunFileAction(Action action)
-    {
-        try { action(); return true; }
-        catch (NotImplementedException ex) { MessageBox.Show(this, ex.Message, "Framework task remaining"); }
-        catch (FileNotFoundException) { MessageBox.Show(this, "The animals file was not found. Reload before trying again."); }
-        catch (DirectoryNotFoundException) { MessageBox.Show(this, "The data folder was not found. Check the application folder."); }
-        catch (UnauthorizedAccessException) { MessageBox.Show(this, "Permission was denied. Check whether the file is read-only and whether the folder allows writing."); }
-        catch (IOException) { MessageBox.Show(this, "The file could not be accessed. Close other programs using it and check available disk space, then try again."); }
-        catch (InvalidOperationException ex) { MessageBox.Show(this, ex.Message, "Could not complete the action"); }
-        return false;
+        // Leaves Add with its feature owner while keeping the shared inputs ready.
+        private void btnAdd_Click(object sender, EventArgs e)
+        {
+            ShowMessage("Add is not implemented yet. Member 1 will connect this button.");
+        }
+
+        // Returns the cursor to the input that failed validation.
+        private void FocusField(string field)
+        {
+            if (field == "Id") txtId.Focus();
+            else if (field == "Name") txtName.Focus();
+            else if (field == "Species") txtSpecies.Focus();
+            else if (field == "Age") txtAge.Focus();
+            else txtRecoveryScore.Focus();
+        }
+
+        // Shows feedback in a persistent label, without interrupting the editor with a dialog.
+        private void ShowMessage(string message)
+        {
+            lblMessage.Text = message;
+        }
+
+        // Adds one aggregate malformed-line notice to the result of a load.
+        private string SkippedMessage()
+        {
+            if (skippedLines > 0)
+            {
+                return " Skipped " + skippedLines + " malformed line(s).";
+            }
+            return string.Empty;
+        }
+
+        // Explains expected storage failures without displaying a stack trace.
+        private void ShowFileError(Exception error)
+        {
+            if (error is FileNotFoundException)
+            {
+                ShowMessage("The animals file was not found. Reload before trying again.");
+            }
+            else if (error is DirectoryNotFoundException)
+            {
+                ShowMessage("The data folder was not found. Check the application folder.");
+            }
+            else if (error is UnauthorizedAccessException)
+            {
+                ShowMessage("Access denied. Check file read-only settings and folder permissions.");
+            }
+            else
+            {
+                ShowMessage("Cannot access the file. Close programs using it and check disk space, then try again.");
+            }
+        }
     }
 }

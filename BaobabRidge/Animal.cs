@@ -1,12 +1,37 @@
-namespace BaobabRidge;
+using System.Globalization;
 
-// Shared contract: Member 1 owns this model. Agree on property names before changing it.
-public sealed record Animal(string Id, string Name, string Species, int Age,
-    int RecoveryScore, string Status, string HousingUnit);
+namespace BaobabRidge
+{
+    // Stores one animal, using ordinary properties and a constructor.
+    public class Animal
+    {
+        public string Id { get; private set; }
+        public string Name { get; set; }
+        public string Species { get; set; }
+        public int Age { get; set; }
+        public int RecoveryScore { get; set; }
+        public string Status { get; set; }
+        public string HousingUnit { get; set; }
 
-public sealed record AnimalInput(string Id, string Name, string Species,
-    string Age, string RecoveryScore);
+        // Creates an animal; classification is supplied by the one shared rules method.
+        public Animal(string id, string name, string species, int age, int recoveryScore)
+        {
+            Id = id;
+            Name = name;
+            Species = species;
+            Age = age;
+            RecoveryScore = recoveryScore;
+            Status = string.Empty;
+            HousingUnit = string.Empty;
+        }
 
-public sealed record ValidationIssue(string Field, string Message);
-
-public sealed record AnimalLoadResult(IReadOnlyList<Animal> Animals, int SkippedLines);
+        // Formats one record for animals.txt, as in the lecturer's ToString/file-writing example.
+        public override string ToString()
+        {
+            return Id + "|" + Name + "|" + Species + "|"
+                + Age.ToString(CultureInfo.InvariantCulture) + "|"
+                + RecoveryScore.ToString(CultureInfo.InvariantCulture) + "|"
+                + Status + "|" + HousingUnit;
+        }
+    }
+}

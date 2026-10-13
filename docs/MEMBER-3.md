@@ -1,52 +1,49 @@
-# Member 3: completing Update
+# Member 3: Update walkthrough
 
-## Read these files in order
+## Read the code in this order
 
-1. `Animal.cs`: the immutable record shared by all features.
-2. `IAnimalRepository.cs`: the team's proposed storage contract.
-3. `MainForm.cs`: `SearchAnimal`, `LoadForEditing`, `SaveChanges`, `ClearEditor`.
-4. `AnimalRules.cs`: common validation and the single classification method.
-5. `TextAnimalRepository.Update.cs`: **your main implementation task**.
+1. `Animal.cs`: properties, constructor and ToString.
+2. `AnimalRules.cs`: TryCreate validation and ClassifyAnimal.
+3. `MainForm.cs`: search, grid click, LoadForEditing, Save Changes and Clear.
+4. `FileHandler.cs`: UpdateAnimal and the small loading/parsing helpers.
 
-The form demonstrates the Update flow. It does not prove file updates are correct. `PracticeAnimalRepository.Update` only changes a list; replacing that behavior with a real file rewrite is your responsibility.
+Update is implemented against the real file. The old practice repository, interface and unfinished TextAnimalRepository files have been removed.
 
-## Connections
+## What happens when the user edits
 
-```text
-Grid click / Search -> LoadForEditing -> same input boxes and edit mode
-Save Changes -> AnimalRules.TryCreate -> repository.Update(originalId, replacement)
-             -> ClearEditor + RefreshAnimals
-Clear -> empty inputs and Add mode; no write
-```
+Both a grid click and an exact case-insensitive ID search call `LoadForEditing`. That fills the same five boxes, remembers `editingId`, makes the ID read-only, disables Add and enables Save Changes.
 
-The original ID identifies a record, not its row number. Never use the grid as the authoritative source for a rewrite. `SaveChanges` does not run an Add-only uniqueness check. Failed writes keep entered values and edit mode. A successful write followed by a failed refresh is reported separately.
+Save calls `AnimalRules.TryCreate`. It trims input, rejects invalid fields and creates a new Animal. The shared classification method fills its status/housing even when the score is unchanged. The form focuses the failing field and leaves the file untouched if validation fails. It does not perform Add's uniqueness check.
 
-## Implement the file rewrite
+The form calls `fileHandler.UpdateAnimal(editingId, updatedAnimal)`. It clears the editor and refreshes the grid only after the write succeeds. If saving fails, the original file and the user's entered values remain available. Clear cancels editing without saving.
 
-Agree on parsing/serialization helpers with Member 2. Keep `Update(string originalId, Animal replacement)` so the form connects without changes.
+Feedback appears in the label at the top of the form. Search-not-found changes the feedback but leaves the current edit alone.
 
-1. Reject ID changes. Match with `StringComparison.OrdinalIgnoreCase`.
-2. Read the latest file from `filePath`. If it disappears during editing, fail; do not rebuild it from a stale grid.
-3. Find exactly one valid matching record. For missing/duplicate IDs, fail without writing.
-4. Replace its line with seven correctly ordered fields. Preserve all other valid records and their positions. Retaining their original raw lines avoids unwanted normalization/reclassification. The brief permits omission of skipped malformed lines during rewriting; keeping them is also acceptable.
-5. Write the replacement to a uniquely named temporary UTF-8 file in the same folder. Close/flush it before replacement.
-6. Replace the original only after the temporary write succeeds. `File.Replace` is an option for an existing destination. Never delete the original first or truncate it before preparing the replacement.
-7. Clean up a leftover temporary file in `finally` without hiding the original failure. Let expected file exceptions reach the form's friendly handler.
+## File rewriting, step by step
 
-If the team supports external edits while the editor is open, agree on stale-update detection. At minimum, reading the latest file at save time must preserve unrelated changes already present then.
+1. Check that the replacement ID matches the original.
+2. Validate the replacement through the shared rules.
+3. Use File.ReadAllLines to read the latest file into a string array.
+4. Use a for loop to find exactly one matching ID. Missing, duplicate or malformed targets fail without writing.
+5. Replace only that array element with the new animal's ToString result.
+6. Use File.WriteAllLines to write a unique temporary file in the same folder.
+7. Use File.Replace after writing finishes. Clean up a leftover temporary file if the operation fails.
 
-## Suggested actual work sessions
+The array contains raw unchanged lines for every other animal. Rewriting a list built from the grid could lose records or overwrite unrelated changes made after the grid was loaded, which is why the file is read again at save time.
 
-These are future milestones, not a claim of completed work. Commit meaningful changes on real separate days.
+File.Replace is the one extra safety step beyond the lecture's direct WriteAllLines example: it avoids truncating the only data file before the new content has been written. It can fail for locked files or permissions; the form catches those failures. Concurrent writers are not supported.
 
-| Session | Your work | Example message |
-| --- | --- | --- |
-| Day 1 | Understand and adapt search/edit flow; agree on team contracts | `Refine animal search and edit mode integration` |
-| Day 2 | Implement real rewrite; verify record preservation | `Implement safe animal file updates` |
-| Day 3 | Test file failures, fix integration problems, record results | `Verify update errors and preserve unrelated records` |
+## Live demo
 
-Use `feature/update-animal`. Check `git config user.name` and `git config user.email` before committing. Reuse the draft PR into `main`; mark it ready only after file mode and the acceptance checks work. Today's scaffold alone cannot satisfy your contribution requirement.
+1. Start the application and search for `wr-0002`.
+2. Verify Naledi's score is 79. If a prior demo saved 80, set it back to 79 first.
+3. Change the score to 80 and save.
+4. Show Release-Ready / Pre-Release Camp and the cleared editor.
+5. Open the output animals.txt: only WR-0002 should differ.
+6. Restart the program and search again to prove persistence.
+7. Try a decimal age and explain the field-specific message.
+8. Set a temporary test file read-only and explain why a failed save keeps the entered values.
 
-## Walkthrough and live demo
+## Your remaining personal work
 
-Explain how grid/search reach one edit method, why `editingId` is stored separately, how shared rules work, and why the replacement file is prepared first. In file mode, change 79 to 80, show Release-Ready / Pre-Release Camp, compare file records, then restart to prove persistence. Include invalid input and a failed file write. Prepare at least three minutes of meaningful speaking and be able to explain and modify every method you adopt.
+Understand and explain each adopted method. Agree on names/signatures with the team, review their integration changes and run the checks yourself. Prepare at least three minutes of meaningful presentation contribution. Make genuine incremental changes under your own identity on actual separate days; generated commits do not replace demonstrating your own understanding or the lecturer's contribution requirements.

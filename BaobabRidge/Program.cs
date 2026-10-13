@@ -1,16 +1,16 @@
-namespace BaobabRidge;
+using System;
+using System.Windows.Forms;
 
-internal static class Program
+namespace BaobabRidge
 {
-    // Starts the framework in practice mode unless --file is supplied.
-    [STAThread]
-    private static void Main(string[] args)
+    internal static class Program
     {
-        ApplicationConfiguration.Initialize();
-        bool practiceMode = !args.Contains("--file", StringComparer.OrdinalIgnoreCase);
-        IAnimalRepository repository = practiceMode
-            ? new PracticeAnimalRepository()
-            : new TextAnimalRepository(Path.Combine(AppContext.BaseDirectory, "animals.txt"));
-        Application.Run(new MainForm(repository, practiceMode));
+        // Starts the Windows Forms application with the real animals.txt file.
+        [STAThread]
+        private static void Main()
+        {
+            ApplicationConfiguration.Initialize();
+            Application.Run(new MainForm());
+        }
     }
 }

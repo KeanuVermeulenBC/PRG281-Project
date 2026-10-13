@@ -1,39 +1,40 @@
-# Team integration contract
+# Connecting the other members' work
 
-Agree on this proposal together before parallel feature work. It is not a claim that other members have accepted the design.
+Everyone uses the same Animal properties, AnimalRules methods, FileHandler instance and five input boxes.
 
-| Owner | Files / methods | Connection |
-| --- | --- | --- |
-| Member 1 | `Animal.cs`, `AnimalRules.cs`, Add | Keep property names. Add and Update both use `TryCreate`/`Classify`; only Add checks uniqueness. |
-| Member 2 | `TextAnimalRepository.Load`, parse/serialize helpers, starter file | Return file-order records and skipped count; display errors in the form. |
-| Member 3 | `TextAnimalRepository.Update.cs`, Update form methods | Use shared rules, current file contents, original ID. |
-| Member 4 | Delete, Summary, README | Reuse repository/path and refresh/clear hooks; separate branches for Delete and Summary. |
+| Member | Connection |
+| --- | --- |
+| 1: Add | Use AnimalRules.TryCreate, check unique IDs, append animal.ToString, then RefreshAnimals and ClearEditor |
+| 2: View/errors | Review FileHandler.ReadAnimals / TryReadAnimal, RefreshAnimals, ShowFileError and starter animals.txt |
+| 3: Update | Uses FileHandler.UpdateAnimal and named events in MainForm |
+| 4: Delete/Summary | Add the remaining controls and FileHandler methods; reuse the current-file loader and form helpers |
 
-## Avoid merge conflicts
+## Shared methods
 
-`TextAnimalRepository` and `MainForm` are partial classes. Put each member's handlers in files such as `MainForm.Add.cs`, `MainForm.Delete.cs`, `MainForm.Summary.cs` and `TextAnimalRepository.Delete.cs`. Move a placeholder once; never duplicate a method with the same signature. Coordinate layout changes in `MainForm.Designer.cs`. Do not create four MainForms or incompatible Animal classes.
+`AnimalRules.TryCreate(id, name, species, ageText, scoreText, out animal, out invalidField, out errorMessage)` is the shared input check. It calls `ClassifyAnimal`. Add must separately reject IDs already in the latest file. Update preserves the original ID.
 
-`Program` constructs one repository instance. File mode uses `Path.Combine(AppContext.BaseDirectory, "animals.txt")`. Share this instance and path; do not use a working-directory-relative or user-specific path. The practice adapter is temporary.
+`FileHandler.ReadAnimals(out skippedLines)` returns a List<Animal> in file order. It creates an empty missing file and counts malformed lines. It does not display messages itself.
 
-## Shared rules
+`FileHandler.UpdateAnimal(originalId, replacement)` replaces one matching record using the latest file contents and fails on missing/ambiguous IDs. Keep that method signature when integrating.
 
-- Member 1 reviews/owns the provisional model and rules before connecting Add.
-- `TryCreate` trims and validates, reports the first field issue, and always calls the single `Classify` method. Do not copy the score bands elsewhere.
-- IDs are immutable. Update requires one target; Add checks current-file uniqueness.
-- Grid bindings: `Id`, `Name`, `Species`, `Age`, `RecoveryScore`, `Status`, `HousingUnit`.
-- UTF-8 file fields follow the same order. Never serialize grid display text or introduce a header.
-- `Load` returns malformed-line count without UI messages. `RefreshAnimals` displays one aggregate warning per load.
-- Preserve unrelated valid records' stored status/housing. Recalculate only added/edited records.
-- Repository failures must throw. Do not swallow them and let the form falsely report success.
+`Animal.ToString()` returns exactly one pipe-separated record. Add should reuse it. Do not duplicate the score bands or the record format in feature handlers.
 
-## Connect the other features
+`RefreshAnimals()` reloads the grid and handles file errors. It returns false if reload failed. `ClearEditor()` resets edit state and the input boxes. `ShowMessage()` puts feedback in the top label.
 
-**Add:** replace the placeholder click message, call shared validation, perform Add-only uniqueness checking, append, show classification, refresh and clear after success.
+## File path and errors
 
-**View:** implement Load, create an empty missing file, count skipped invalid rows and supply eight starter records spanning at least four statuses. The grid/startup hooks are ready.
+FileHandler owns the path `Path.Combine(AppContext.BaseDirectory, "animals.txt")`. The test constructor accepts a temporary path; the normal application never needs a user-specific path.
 
-**Delete:** add a button, require a selected row, confirm Yes/No with ID and name, then delete. On success, clear if `editingId` matches and refresh. Cancelling changes nothing.
+FileHandler lets storage exceptions reach the form. Every new file operation must be called inside the same try/catch pattern used by Search and Save. Do not report success or clear inputs after a failed write.
 
-**Summary:** add persistent labels/read-only textboxes and a button, load current file data, calculate counts/averages and write the exact section 5.2 report beside the executable. Use invariant culture and empty-case N/A averages.
+Add appends rather than rewrites. Delete should preserve every other record and use a safe temporary-file replacement. Summary uses current file data and writes summary.txt beside the executable.
 
-Before submission, make file mode the default, complete member information, remove practice-only UI, and run acceptance checks from a fresh clone.
+## Form integration
+
+Replace the placeholder `btnAdd_Click` for Add. MainForm is partial, so other members can put their event handlers in `MainForm.Add.cs`, `MainForm.Delete.cs` or `MainForm.Summary.cs` if useful. Remove the old placeholder before declaring the same handler elsewhere. Coordinate edits to the shared Designer file.
+
+Delete must require a selected row and a Yes/No confirmation naming the ID and animal. After success, clear the editor if the deleted ID matches editingId, then refresh. Cancelling changes nothing.
+
+Summary needs visible labels or read-only textboxes, all five status counts, invariant-culture averages, N/A when empty and the exact report layout from the brief.
+
+Before submission, review all five features from a fresh clone, complete the member details, verify branch/PR requirements and make sure the GitHub main version matches the demo.

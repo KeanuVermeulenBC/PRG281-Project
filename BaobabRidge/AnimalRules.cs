@@ -1,62 +1,136 @@
+using System;
 using System.Globalization;
-using System.Text.RegularExpressions;
 
-namespace BaobabRidge;
-
-// Provisional shared implementation for Member 1 to review and own.
-public static class AnimalRules
+namespace BaobabRidge
 {
-    // Maps the score to the exact status and housing strings required by the brief.
-    public static (string Status, string HousingUnit) Classify(int score)
+    // Member 1 and Member 3 share these rules; Add also needs a separate uniqueness check.
+    public static class AnimalRules
     {
-        if (score < 0 || score > 100)
-            throw new ArgumentOutOfRangeException(nameof(score));
-        if (score <= 19) return ("Critical", "Intensive Care Unit");
-        if (score <= 39) return ("Serious", "High-Dependency Ward");
-        if (score <= 59) return ("Stable", "Recovery Ward");
-        if (score <= 79) return ("Recovering", "Outdoor Enclosure");
-        return ("Release-Ready", "Pre-Release Camp");
-    }
+        // Checks the five input strings and creates a classified animal when they are valid.
+        public static bool TryCreate(string id, string name, string species, string ageText,
+            string scoreText, out Animal animal, out string invalidField, out string errorMessage)
+        {
+            animal = null;
+            invalidField = string.Empty;
+            errorMessage = string.Empty;
+            id = id.Trim().ToUpperInvariant();
+            name = name.Trim();
+            species = species.Trim();
+            int age;
+            int score;
 
-    // Validates common Add/Update fields and always recalculates classification.
-    // Member 1 must perform the Add-only uniqueness check against the latest file separately.
-    public static bool TryCreate(AnimalInput input, out Animal? animal, out ValidationIssue? issue)
-    {
-        animal = null;
-        issue = null;
-        string id = input.Id.Trim().ToUpperInvariant();
-        string name = input.Name.Trim();
-        string species = input.Species.Trim();
-        if (!Regex.IsMatch(id, @"\AWR-[0-9]{4}\z"))
-            issue = new("Id", "Animal ID must be WR- followed by exactly four digits.");
-        else if (!ValidText(name))
-            issue = new("Name", "Name must contain 1-30 characters and no pipe or line break.");
-        else if (!ValidText(species))
-            issue = new("Species", "Species must contain 1-30 characters and no pipe or line break.");
-        else if (!TryNumber(input.Age, out _))
-            issue = new("Age", "Age must be a whole number between 0 and 100.");
-        else if (!TryNumber(input.RecoveryScore, out _))
-            issue = new("RecoveryScore", "Recovery Score must be a whole number between 0 and 100.");
-        if (issue != null) return false;
+            if (!ValidId(id))
+            {
+                invalidField = "Id";
+                errorMessage = "Animal ID must be WR- followed by exactly four digits.";
+            }
+            else if (!ValidText(name))
+            {
+                invalidField = "Name";
+                errorMessage = "Name must contain 1-30 characters and no pipe or line break.";
+            }
+            else if (!ValidText(species))
+            {
+                invalidField = "Species";
+                errorMessage = "Species must contain 1-30 characters and no pipe or line break.";
+            }
+            else if (!TryNumber(ageText, out age))
+            {
+                invalidField = "Age";
+                errorMessage = "Age must be a whole number between 0 and 100.";
+            }
+            else if (!TryNumber(scoreText, out score))
+            {
+                invalidField = "RecoveryScore";
+                errorMessage = "Recovery Score must be a whole number between 0 and 100.";
+            }
+            else
+            {
+                animal = new Animal(id, name, species, age, score);
+                ClassifyAnimal(animal);
+                return true;
+            }
+            return false;
+        }
 
-        TryNumber(input.Age, out int age);
-        TryNumber(input.RecoveryScore, out int score);
-        var classification = Classify(score);
-        animal = new(id, name, species, age, score, classification.Status, classification.HousingUnit);
-        return true;
-    }
+        // Assigns the exact status and housing for the score; Add and Update use this same method.
+        public static void ClassifyAnimal(Animal animal)
+        {
+            int score = animal.RecoveryScore;
+            if (score < 0 || score > 100)
+            {
+                throw new ArgumentOutOfRangeException("RecoveryScore");
+            }
 
-    // Keeps a text field within the one-record-per-line storage contract.
-    private static bool ValidText(string value) => value.Length is >= 1 and <= 30
-        && value.IndexOfAny(new[] { '|', '\r', '\n' }) < 0;
+            if (score <= 19)
+            {
+                animal.Status = "Critical";
+                animal.HousingUnit = "Intensive Care Unit";
+            }
+            else if (score <= 39)
+            {
+                animal.Status = "Serious";
+                animal.HousingUnit = "High-Dependency Ward";
+            }
+            else if (score <= 59)
+            {
+                animal.Status = "Stable";
+                animal.HousingUnit = "Recovery Ward";
+            }
+            else if (score <= 79)
+            {
+                animal.Status = "Recovering";
+                animal.HousingUnit = "Outdoor Enclosure";
+            }
+            else
+            {
+                animal.Status = "Release-Ready";
+                animal.HousingUnit = "Pre-Release Camp";
+            }
+        }
 
-    // Accepts trimmed ASCII digits only, with no decimals, signs or culture-dependent separators.
-    private static bool TryNumber(string value, out int number)
-    {
-        string trimmed = value.Trim();
-        number = 0;
-        return Regex.IsMatch(trimmed, @"\A[0-9]+\z")
-            && int.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out number)
-            && number <= 100;
+        // Checks the prefix and each of the four digits without a regular expression.
+        private static bool ValidId(string id)
+        {
+            if (id.Length != 7 || !id.StartsWith("WR-", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            for (int i = 3; i < id.Length; i++)
+            {
+                if (id[i] < '0' || id[i] > '9')
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Keeps text within the required length and on a single pipe-separated record.
+        private static bool ValidText(string text)
+        {
+            return text.Length >= 1 && text.Length <= 30
+                && !text.Contains("|") && !text.Contains("\r") && !text.Contains("\n");
+        }
+
+        // Accepts digits only, then checks the required numeric range.
+        private static bool TryNumber(string text, out int number)
+        {
+            text = text.Trim();
+            number = 0;
+            if (text == string.Empty)
+            {
+                return false;
+            }
+            foreach (char digit in text)
+            {
+                if (digit < '0' || digit > '9')
+                {
+                    return false;
+                }
+            }
+            return int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out number)
+                && number >= 0 && number <= 100;
+        }
     }
 }
