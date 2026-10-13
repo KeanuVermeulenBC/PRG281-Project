@@ -120,6 +120,49 @@ namespace BaobabRidge
             }
         }
 
+        // Returns true if the latest file already contains this ID (ignoring upper/lower case).
+        public bool IDExists(string id)
+        {
+            if (!File.Exists(filePath))
+            {
+                // Create an empty missing file, but do not hide missing-folder or permission errors.
+                return false;
+            }
+            string[] lines = File.ReadAllLines(filePath, Encoding.UTF8);
+            foreach (string line in lines)
+            {
+                string[] fields = line.Split('|');
+                if (string.Equals(fields[0].Trim(), id, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Appends one new animal to the end of animals.txt without touching existing lines.
+        public void AddAnimal(Animal newAnimal)
+        {
+            if (IDExists(newAnimal.Id))
+            {
+                throw new InvalidOperationException("Animal ID " + newAnimal.Id + " already exists.");
+            }
+
+            string text = newAnimal.ToString() + Environment.NewLine;
+
+            if (File.Exists(filePath))
+            {
+                 string existingText = File.ReadAllText(filePath, Encoding.UTF8);
+
+                if (existingText.Length > 0 && !existingText.EndsWith("\n"))
+                {
+                    text = Environment.NewLine + text;
+                }
+
+            }
+            File.AppendAllText(filePath, text, new UTF8Encoding(false));
+        }
+
         // Converts a seven-field line into an Animal without changing its stored classification.
         private bool TryReadAnimal(string line, out Animal animal)
         {
