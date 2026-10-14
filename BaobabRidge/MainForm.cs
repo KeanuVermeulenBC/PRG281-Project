@@ -209,7 +209,50 @@ namespace BaobabRidge
         // Leaves Add with its feature owner while keeping the shared inputs ready.
         private void btnAdd_Click(object sender, EventArgs e)
         {
-            ShowMessage("Add is not implemented yet. Member 1 will connect this button.");
+            Animal newAnimal;
+            string invalidField;
+            string errorMessage;
+
+            if (!AnimalRules.TryCreate(txtId.Text, txtName.Text, txtSpecies.Text,
+                txtAge.Text, txtRecoveryScore.Text, out newAnimal, out invalidField, out errorMessage))
+            {
+                ShowMessage(errorMessage);
+                FocusField(invalidField);
+                return;
+            }
+
+            try
+            {
+                fileHandler.AddAnimal(newAnimal);
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                ShowMessage(ex.Message);
+                txtId.Focus();
+                return;
+            }
+
+            // Clear and reload only after the animal was written; a failed save keeps the typed values.
+            ClearEditor();
+            if (RefreshAnimals())
+            {
+                ShowMessage("Added " + newAnimal.Id + ": " + newAnimal.Status
+                    + " | " + newAnimal.HousingUnit + "." + SkippedMessage());
+            }
+            else
+            {
+                ShowMessage("The added animal was saved, but the grid could not reload. Check the file and click Reload.");
+            }
         }
 
         // Returns the cursor to the input that failed validation.
