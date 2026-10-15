@@ -54,7 +54,7 @@ The structure follows the class, List, FileHandler and text-file examples in the
 
 | Role | Name | Student number |
 | --- | --- | --- |
-| Member 1 | TO COMPLETE | TO COMPLETE |
+| Member 1 | Keanu Vermeulen | 604066 |
 | Member 2 | TO COMPLETE | TO COMPLETE |
 | Member 3 | TO COMPLETE | TO COMPLETE |
 | Member 4 | TO COMPLETE | TO COMPLETE |
