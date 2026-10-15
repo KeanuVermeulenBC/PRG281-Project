@@ -7,7 +7,7 @@ namespace BaobabRidge
 
     public partial class MainForm
     {
-        private DataGridView gridAnimals = new DataGridView();
+        private Panel pnlAnimalsView = new Panel();
         private TextBox txtId = new TextBox();
         private TextBox txtName = new TextBox();
         private TextBox txtSpecies = new TextBox();
@@ -18,7 +18,6 @@ namespace BaobabRidge
         private Button btnSaveChanges = new Button();
         private Button btnClear = new Button();
         private Button btnSearch = new Button();
-        private Button btnRefresh = new Button();
         private Label lblClassification = new Label();
         private Label lblMessage = new Label();
 
@@ -50,25 +49,13 @@ namespace BaobabRidge
             txtSearchId.Name = "txtSearchId";
             search.Controls.Add(txtSearchId);
             ConfigureButton(btnSearch, "Search", "btnSearch");
-            ConfigureButton(btnRefresh, "Reload", "btnRefresh");
-            search.Controls.AddRange(new Control[] { btnSearch, btnRefresh });
+            search.Controls.Add(btnSearch);
             layout.Controls.Add(search, 0, 1);
 
-            gridAnimals.Name = "gridAnimals";
-            gridAnimals.Dock = DockStyle.Fill;
-            gridAnimals.ReadOnly = true;
-            gridAnimals.AllowUserToAddRows = false;
-            gridAnimals.AllowUserToDeleteRows = false;
-            gridAnimals.MultiSelect = false;
-            gridAnimals.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            gridAnimals.AutoGenerateColumns = false;
-            gridAnimals.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            gridAnimals.RowHeadersVisible = false;
-            string[] properties = { "Id", "Name", "Species", "Age", "RecoveryScore", "Status", "HousingUnit" };
-            string[] headers = { "Animal ID", "Name", "Species", "Age", "Recovery Score", "Status", "Housing Unit" };
-            for (int i = 0; i < properties.Length; i++)
-                gridAnimals.Columns.Add(new DataGridViewTextBoxColumn { Name = properties[i], DataPropertyName = properties[i], HeaderText = headers[i], SortMode = DataGridViewColumnSortMode.NotSortable });
-            layout.Controls.Add(gridAnimals, 0, 2);
+            // Victor will add and configure his DataGridView in this reserved area.
+            pnlAnimalsView.Name = "pnlAnimalsView";
+            pnlAnimalsView.Dock = DockStyle.Fill;
+            layout.Controls.Add(pnlAnimalsView, 0, 2);
 
             TableLayoutPanel editor = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 3, Padding = new Padding(0, 14, 0, 0) };
             editor.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
@@ -93,11 +80,9 @@ namespace BaobabRidge
 
             // Named events match the usual Visual Studio WinForms event-handler pattern.
             Load += MainForm_Load;
-            gridAnimals.CellClick += gridAnimals_CellClick;
             btnSearch.Click += btnSearch_Click;
             btnSaveChanges.Click += btnSaveChanges_Click;
             btnClear.Click += btnClear_Click;
-            btnRefresh.Click += btnRefresh_Click;
             btnAdd.Click += btnAdd_Click;
         }
 

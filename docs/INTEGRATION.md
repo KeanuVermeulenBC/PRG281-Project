@@ -4,8 +4,8 @@ Everyone uses the same Animal properties, AnimalRules methods, FileHandler insta
 
 | Member | Connection |
 | --- | --- |
-| 1: Add | Use AnimalRules.TryCreate, check unique IDs, append animal.ToString, then RefreshAnimals and ClearEditor |
-| 2: View/errors | Review FileHandler.ReadAnimals / TryReadAnimal, RefreshAnimals, ShowFileError and starter animals.txt |
+| 1: Keanu / Add | Existing committed Add handler, IDExists and AddAnimal are retained |
+| 2: Victor / View | Implement the DataGridView in pnlAnimalsView, startup loading, RefreshAnimals and row selection |
 | 3: Update | Uses FileHandler.UpdateAnimal and named events in MainForm |
 | 4: Delete/Summary | Add the remaining controls and FileHandler methods; reuse the current-file loader and form helpers |
 
@@ -19,7 +19,7 @@ Everyone uses the same Animal properties, AnimalRules methods, FileHandler insta
 
 `Animal.ToString()` returns exactly one pipe-separated record. Add should reuse it. Do not duplicate the score bands or the record format in feature handlers.
 
-`RefreshAnimals()` reloads the grid and handles file errors. It returns false if reload failed. `ClearEditor()` resets edit state and the input boxes. `ShowMessage()` puts feedback in the top label.
+`RefreshAnimals()` is now an empty integration hook for Victor. It returns true until he implements the actual grid refresh; existing Add and Update calls remain in place. Victor's implementation should return false on a load failure. `ClearEditor()` resets edit state and inputs. `ShowMessage()` puts feedback in the top label.
 
 ## File path and errors
 
@@ -31,7 +31,9 @@ Add appends rather than rewrites. Delete should preserve every other record and 
 
 ## Form integration
 
-Replace the placeholder `btnAdd_Click` for Add. MainForm is partial, so other members can put their event handlers in `MainForm.Add.cs`, `MainForm.Delete.cs` or `MainForm.Summary.cs` if useful. Remove the old placeholder before declaring the same handler elsewhere. Coordinate edits to the shared Designer file.
+Keep Keanu's completed `btnAdd_Click`, `IDExists` and `AddAnimal` methods. MainForm is partial, so Victor can place view handlers in `MainForm.View.cs` if useful. Coordinate edits to the shared Designer file and avoid declaring the same method twice.
+
+Victor's [DataGridView handoff](VICTOR-DATAGRID.md) identifies the blank panel, startup hook, refresh hook and editor method. The existing ReadAnimals/TryReadAnimal helpers are retained because Search and Update depend on them; they do not display a grid.
 
 Delete must require a selected row and a Yes/No confirmation naming the ID and animal. After success, clear the editor if the deleted ID matches editingId, then refresh. Cancelling changes nothing.
 

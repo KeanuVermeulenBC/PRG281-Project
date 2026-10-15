@@ -4,18 +4,18 @@
 
 1. `Animal.cs`: properties, constructor and ToString.
 2. `AnimalRules.cs`: TryCreate validation and ClassifyAnimal.
-3. `MainForm.cs`: search, grid click, LoadForEditing, Save Changes and Clear.
+3. `MainForm.cs`: search, LoadForEditing, Save Changes and Clear.
 4. `FileHandler.cs`: UpdateAnimal and the small loading/parsing helpers.
 
 Update is implemented against the real file. The old practice repository, interface and unfinished TextAnimalRepository files have been removed.
 
 ## What happens when the user edits
 
-Both a grid click and an exact case-insensitive ID search call `LoadForEditing`. That fills the same five boxes, remembers `editingId`, makes the ID read-only, disables Add and enables Save Changes.
+An exact case-insensitive ID search calls `LoadForEditing`. That fills the five boxes, remembers `editingId`, makes the ID read-only, disables Add and enables Save Changes. Victor will connect his future grid row-click handler to this same method.
 
 Save calls `AnimalRules.TryCreate`. It trims input, rejects invalid fields and creates a new Animal. The shared classification method fills its status/housing even when the score is unchanged. The form focuses the failing field and leaves the file untouched if validation fails. It does not perform Add's uniqueness check.
 
-The form calls `fileHandler.UpdateAnimal(editingId, updatedAnimal)`. It clears the editor and refreshes the grid only after the write succeeds. If saving fails, the original file and the user's entered values remain available. Clear cancels editing without saving.
+The form calls `fileHandler.UpdateAnimal(editingId, updatedAnimal)`. It clears the editor and calls the `RefreshAnimals` connection point only after the write succeeds. That method is currently a placeholder for Victor's grid; it performs no loading or binding. If saving fails, the original file and the user's entered values remain available. Clear cancels editing without saving.
 
 Feedback appears in the label at the top of the form. Search-not-found changes the feedback but leaves the current edit alone.
 
@@ -38,7 +38,7 @@ File.Replace is the one extra safety step beyond the lecture's direct WriteAllLi
 1. Start the application and search for `wr-0002`.
 2. Verify Naledi's score is 79. If a prior demo saved 80, set it back to 79 first.
 3. Change the score to 80 and save.
-4. Show Release-Ready / Pre-Release Camp and the cleared editor.
+4. Show Release-Ready / Pre-Release Camp in the feedback label and the cleared editor.
 5. Open the output animals.txt: only WR-0002 should differ.
 6. Restart the program and search again to prove persistence.
 7. Try a decimal age and explain the field-specific message.

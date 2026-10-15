@@ -2,7 +2,6 @@ using System;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
-using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
 using BaobabRidge;
@@ -170,7 +169,7 @@ internal static class Program
         ResetFile();
     }
 
-    // Verifies actual button handlers, grid selection and error feedback using a temporary file.
+    // Verifies Add/Search/Update buttons and error feedback while Victor's grid is pending.
     private static void CheckForm(string previewPath)
     {
         ResetFile();
@@ -181,16 +180,10 @@ internal static class Program
             form.ShowInTaskbar = false;
             form.Show();
             Application.DoEvents();
-            DataGridView grid = (DataGridView)Find(form, "gridAnimals");
             TextBox id = (TextBox)Find(form, "txtId");
             Button add = (Button)Find(form, "btnAdd");
             Button save = (Button)Find(form, "btnSaveChanges");
-            Check(grid.Rows.Count == 3 && grid.SelectedRows.Count == 0, "Startup load");
             Check(!id.ReadOnly && add.Enabled && !save.Enabled, "Initial Add state");
-            Check(grid.ReadOnly && !grid.AllowUserToAddRows && !grid.AllowUserToDeleteRows
-                && grid.SelectionMode == DataGridViewSelectionMode.FullRowSelect, "Grid protection");
-            string[] headers = { "Animal ID", "Name", "Species", "Age", "Recovery Score", "Status", "Housing Unit" };
-            for (int i = 0; i < headers.Length; i++) Check(grid.Columns[i].HeaderText == headers[i], "Grid header " + i);
 
             Find(form, "txtSearchId").Text = " wr-0002 ";
             ((Button)Find(form, "btnSearch")).PerformClick();
@@ -219,15 +212,39 @@ internal static class Program
 
             save.PerformClick();
             Check(File.ReadAllLines(filePath)[1].Contains("|80|Release-Ready|Pre-Release Camp"), "UI saves real file");
-            Check(id.Text == "" && !id.ReadOnly && add.Enabled && !save.Enabled && grid.Rows.Count == 3, "Save refreshes and resets editor");
+            Check(id.Text == "" && !id.ReadOnly && add.Enabled && !save.Enabled, "Save resets editor without a grid");
 
-            // Call the actual grid event with its standard event arguments.
-            MethodInfo click = typeof(MainForm).GetMethod("gridAnimals_CellClick", BindingFlags.Instance | BindingFlags.NonPublic);
-            click.Invoke(form, new object[] { grid, new DataGridViewCellEventArgs(0, 2) });
-            Check(id.Text == "WR-0004" && save.Enabled, "Grid click enters same editor");
+            Find(form, "txtSearchId").Text = "WR-0004";
+            ((Button)Find(form, "btnSearch")).PerformClick();
+            Check(id.Text == "WR-0004" && save.Enabled, "Search can load the next animal");
             ((Button)Find(form, "btnClear")).PerformClick();
             Check(id.Text == "" && !save.Enabled && Find(form, "txtName").Text == ""
                 && Find(form, "txtSearchId").Text == "", "Clear empties editor");
+
+            string beforeAdd = File.ReadAllText(filePath);
+            id.Text = "wr-0009";
+            Find(form, "txtName").Text = " New animal ";
+            Find(form, "txtSpecies").Text = "Serval";
+            Find(form, "txtAge").Text = "2";
+            Find(form, "txtRecoveryScore").Text = "20";
+            add.PerformClick();
+            string afterAdd = File.ReadAllText(filePath);
+            Check(afterAdd.StartsWith(beforeAdd, StringComparison.Ordinal)
+                && File.ReadAllLines(filePath)[3] == "WR-0009|New animal|Serval|2|20|Serious|High-Dependency Ward",
+                "Keanu's Add appends without changing existing records");
+            Check(id.Text == "" && add.Enabled && !save.Enabled
+                && Find(form, "lblMessage").Text.Contains("Added WR-0009"), "Add success resets editor without a grid");
+
+            id.Text = "wr-0009";
+            Find(form, "txtName").Text = "Duplicate animal";
+            Find(form, "txtSpecies").Text = "Serval";
+            Find(form, "txtAge").Text = "2";
+            Find(form, "txtRecoveryScore").Text = "20";
+            add.PerformClick();
+            Check(File.ReadAllText(filePath) == afterAdd
+                && Find(form, "txtName").Text == "Duplicate animal"
+                && Find(form, "lblMessage").Text.Contains("already exists"), "Duplicate Add still rejected");
+            ((Button)Find(form, "btnClear")).PerformClick();
 
             if (previewPath != string.Empty)
             {

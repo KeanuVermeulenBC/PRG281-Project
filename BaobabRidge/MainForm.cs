@@ -24,54 +24,20 @@ namespace BaobabRidge
             InitializeComponent();
         }
 
-        // Starts in Add mode and loads the current file into the grid.
+        // Starts in Add mode; Victor will connect his startup grid loading here.
         private void MainForm_Load(object sender, EventArgs e)
         {
             ClearEditor();
-            RefreshAnimals();
+            ShowMessage("Enter details to add an animal, or search by Animal ID to edit.");
         }
 
-        // Reloads records without adding duplicate grid rows; returns false if reading fails.
+        // Connection point for Victor's grid refresh after a successful Add or Update.
         private bool RefreshAnimals()
         {
-            try
-            {
-                List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
-                gridAnimals.DataSource = animals;
-                gridAnimals.ClearSelection();
-                gridAnimals.CurrentCell = null;
-                ShowMessage("Loaded " + animals.Count + " animals." + SkippedMessage());
-                return true;
-            }
-            catch (IOException ex)
-            {
-                ShowFileError(ex);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                ShowFileError(ex);
-            }
-            return false;
-        }
-
-        // Reloads the grid without discarding unsaved editor values.
-        private void btnRefresh_Click(object sender, EventArgs e)
-        {
-            RefreshAnimals();
-        }
-
-        // Loads the clicked animal into the common editor.
-        private void gridAnimals_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex >= 0)
-            {
-                Animal animal = gridAnimals.Rows[e.RowIndex].DataBoundItem as Animal;
-                if (animal != null)
-                {
-                    LoadForEditing(animal);
-                    ShowMessage("Editing " + animal.Id + ".");
-                }
-            }
+            // TODO VICTOR: load/bind the grid and return false if refreshing fails.
+            // There is no grid yet. Completed file writes can still report success.
+            skippedLines = 0;
+            return true;
         }
 
         // Uses a foreach loop to find one exact ID, ignoring upper/lower case.
@@ -110,7 +76,7 @@ namespace BaobabRidge
             }
         }
 
-        // Makes grid selection and ID search use the same input boxes and form state.
+        // Loads the editor from Search; Victor can call this from his future row-click handler.
         private void LoadForEditing(Animal animal)
         {
             editingId = animal.Id;
@@ -201,8 +167,6 @@ namespace BaobabRidge
             btnAdd.Enabled = true;
             btnSaveChanges.Enabled = false;
             lblClassification.Text = "Status and housing are calculated from the recovery score.";
-            gridAnimals.ClearSelection();
-            gridAnimals.CurrentCell = null;
             txtId.Focus();
         }
 
