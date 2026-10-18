@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace BaobabRidge
 {
@@ -151,6 +152,88 @@ namespace BaobabRidge
         {
             ClearEditor();
             ShowMessage("Editor cleared. Select an animal or search by Animal ID.");
+        }
+        // Deletes the animal selected in the grid after a Yes/No confirmation.
+        private void btnDelete_Click(object sender, EventArgs e)
+        {
+            string selectedId;
+            string selectedName;
+            if (!TryGetSelectedAnimal(out selectedId, out selectedName))
+            {
+                ShowMessage("Select one animal in the grid before deleting.");
+                return;
+            }
+
+            DialogResult answer = MessageBox.Show(
+                "Delete " + selectedId + " (" + selectedName + ")? This cannot be undone.",
+                "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+            if (answer != DialogResult.Yes)
+            {
+                ShowMessage("Delete cancelled. Nothing was changed.");
+                return;
+            }
+
+            try
+            {
+                fileHandler.DeleteAnimal(selectedId);
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+                return;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                ShowMessage(ex.Message);
+                return;
+            }
+
+            // Clear the editor only if the deleted animal was the one loaded for editing.
+            if (string.Equals(editingId, selectedId, StringComparison.OrdinalIgnoreCase))
+            {
+                ClearEditor();
+            }
+
+            if (RefreshAnimals())
+            {
+                ShowMessage("Deleted " + selectedId + " (" + selectedName + ")." + SkippedMessage());
+            }
+            else
+            {
+                ShowMessage("The animal was deleted, but the grid could not reload. Check the file and click Reload.");
+            }
+        }
+        // Reads the ID and name of the single selected grid row; Victor's grid is the only thing this depends on.
+        private bool TryGetSelectedAnimal(out string id, out string name)
+        {
+            id = "";
+            name = "";
+
+            DataGridView grid = pnlAnimalsView.Controls.OfType<DataGridView>().FirstOrDefault();
+            if (grid == null || grid.SelectedRows.Count != 1)
+            {
+                return false;
+            }
+
+            DataGridViewRow row = grid.SelectedRows[0];
+            Animal animal = row.DataBoundItem as Animal;
+            if (animal != null)
+            {
+                id = animal.Id;
+                name = animal.Name;
+            }
+            else if (grid.Columns.Contains("Id") && grid.Columns.Contains("Name"))
+            {
+                id = Convert.ToString(row.Cells["Id"].Value);
+                name = Convert.ToString(row.Cells["Name"].Value);
+            }
+
+            return id != "";
         }
 
         // Returns to Add mode; Add and Delete can reuse this after successful changes.

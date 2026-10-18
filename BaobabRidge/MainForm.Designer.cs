@@ -18,6 +18,7 @@ namespace BaobabRidge
         private Button btnSaveChanges = new Button();
         private Button btnClear = new Button();
         private Button btnSearch = new Button();
+        private Button btnDelete = new Button();
         private Label lblClassification = new Label();
         private Label lblMessage = new Label();
 
@@ -74,8 +75,9 @@ namespace BaobabRidge
             FlowLayoutPanel actions = new FlowLayoutPanel { Dock = DockStyle.Fill };
             ConfigureButton(btnAdd, "Add", "btnAdd");
             ConfigureButton(btnSaveChanges, "Save Changes", "btnSaveChanges");
+            ConfigureButton(btnDelete, "Delete", "btnDelete");
             ConfigureButton(btnClear, "Clear", "btnClear");
-            actions.Controls.AddRange(new Control[] { btnAdd, btnSaveChanges, btnClear });
+            actions.Controls.AddRange(new Control[] { btnAdd, btnSaveChanges, btnDelete, btnClear });
             layout.Controls.Add(actions, 0, 5);
 
             // Named events match the usual Visual Studio WinForms event-handler pattern.
@@ -84,6 +86,7 @@ namespace BaobabRidge
             btnSaveChanges.Click += btnSaveChanges_Click;
             btnClear.Click += btnClear_Click;
             btnAdd.Click += btnAdd_Click;
+            btnDelete.Click += btnDelete_Click;
         }
 
         // Adds a consistently labelled input to the shared editor.

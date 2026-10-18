@@ -206,5 +206,38 @@ namespace BaobabRidge
                 // Cleanup permissions must not replace the useful error from the failed save.
             }
         }
+
+        public void DeleteAnimal(string id)
+        {
+            // Read the file again instead of rewriting a possibly outdated grid list.
+            List<string> lines = new List<string>(File.ReadAllLines(filePath));
+            int matchingIndex = -1;
+            int matchCount = 0;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string[] fields = lines[i].Split('|');
+                if (fields[0].Trim().ToLower() == id.ToLower())
+                {
+                    matchingIndex = i;
+                    matchCount++;
+                }
+            }
+
+            if (matchCount == 0)
+            {
+                throw new InvalidOperationException("This animal is no longer in the file. Reload before deleting again.");
+            }
+            if (matchCount > 1)
+            {
+                throw new InvalidOperationException("The file contains this Animal ID more than once. Correct the duplicate IDs before deleting.");
+            }
+            if ((File.GetAttributes(filePath) & FileAttributes.ReadOnly) != 0)
+            {
+                throw new UnauthorizedAccessException("The animals file is read-only.");
+            }
+
+            lines.RemoveAt(matchingIndex);
+            File.WriteAllLines(filePath, lines);
+        }
     }
 }
