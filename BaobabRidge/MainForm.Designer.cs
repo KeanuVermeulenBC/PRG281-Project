@@ -21,6 +21,8 @@ namespace BaobabRidge
         private Button btnDelete = new Button();
         private Label lblClassification = new Label();
         private Label lblMessage = new Label();
+        private Button btnGenerateSummary = new Button();
+        private TextBox txtSummary = new TextBox();
 
         // Creates the common controls; agree on layout changes to avoid team merge conflicts.
         private void InitializeComponent()
@@ -30,13 +32,14 @@ namespace BaobabRidge
             MinimumSize = new Size(920, 680);
             StartPosition = FormStartPosition.CenterScreen;
             Font = new Font("Segoe UI", 10);
-            TableLayoutPanel layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(18), ColumnCount = 1, RowCount = 6 };
+            TableLayoutPanel layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(18), ColumnCount = 1, RowCount = 7 };
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 46));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
             Controls.Add(layout);
             lblMessage.Dock = DockStyle.Fill;
             lblMessage.Name = "lblMessage";
@@ -77,8 +80,16 @@ namespace BaobabRidge
             ConfigureButton(btnSaveChanges, "Save Changes", "btnSaveChanges");
             ConfigureButton(btnDelete, "Delete", "btnDelete");
             ConfigureButton(btnClear, "Clear", "btnClear");
-            actions.Controls.AddRange(new Control[] { btnAdd, btnSaveChanges, btnDelete, btnClear });
+            ConfigureButton(btnGenerateSummary, "Generate Summary", "btnGenerateSummary");
+            actions.Controls.AddRange(new Control[] { btnAdd, btnSaveChanges, btnDelete, btnClear, btnGenerateSummary });
             layout.Controls.Add(actions, 0, 5);
+
+            txtSummary.Name = "txtSummary";
+            txtSummary.Multiline = true;
+            txtSummary.ReadOnly = true;
+            txtSummary.ScrollBars = ScrollBars.Vertical;
+            txtSummary.Dock = DockStyle.Fill;
+            layout.Controls.Add(txtSummary, 0, 6);
 
             // Named events match the usual Visual Studio WinForms event-handler pattern.
             Load += MainForm_Load;
@@ -87,6 +98,7 @@ namespace BaobabRidge
             btnClear.Click += btnClear_Click;
             btnAdd.Click += btnAdd_Click;
             btnDelete.Click += btnDelete_Click;
+            btnGenerateSummary.Click += btnGenerateSummary_Click;
         }
 
         // Adds a consistently labelled input to the shared editor.

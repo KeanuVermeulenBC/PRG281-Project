@@ -153,6 +153,40 @@ namespace BaobabRidge
             ClearEditor();
             ShowMessage("Editor cleared. Select an animal or search by Animal ID.");
         }
+
+        // Calculates the first summary figures from the animals currently in animals.txt.
+        private void btnGenerateSummary_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+
+                int totalAnimals = animals.Count;
+                double totalAge = 0;
+                foreach (Animal animal in animals)
+                {
+                    totalAge += animal.Age;
+                }
+
+                double averageAge = 0;
+                if (totalAnimals > 0)
+                {
+                    averageAge = totalAge / totalAnimals;
+                }
+
+                txtSummary.Text = "Total animals: " + totalAnimals + Environment.NewLine
+                    + "Average age: " + averageAge.ToString("0.0", CultureInfo.InvariantCulture);
+                ShowMessage("Summary generated." + SkippedMessage());
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+            }
+        }
         // Deletes the animal selected in the grid after a Yes/No confirmation.
         private void btnDelete_Click(object sender, EventArgs e)
         {
