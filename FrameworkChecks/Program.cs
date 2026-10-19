@@ -160,7 +160,8 @@ internal static class Program
             // Reading is allowed, but Windows denies replacement: tests failure after temporary writing.
             CheckFailedUpdate(handler, "WR-0002", CreateAnimal("WR-0002", 80), "Locked replacement protected");
         }
-        Check(Directory.GetFiles(testFolder, "*.tmp").Length == 0, "Failed replacement cleaned temporary file");
+        string[] temporaryFiles = Directory.GetFiles(testFolder, "*.tmp");
+        Check(temporaryFiles.Length == 0, "Failed replacement cleaned temporary file: " + string.Join(", ", temporaryFiles));
         File.Delete(filePath);
         bool missingRejected = false;
         try { handler.UpdateAnimal("WR-0002", CreateAnimal("WR-0002", 80)); }

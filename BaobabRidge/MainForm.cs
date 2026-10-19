@@ -143,7 +143,7 @@ namespace BaobabRidge
             }
             else
             {
-                ShowMessage("The update was saved, but the grid could not reload. Check the file and click Reload.");
+                ShowMessage("The update was saved, but the animal list could not reload. Check file access and reopen the application.");
             }
         }
 

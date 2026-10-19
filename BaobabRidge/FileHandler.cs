@@ -74,26 +74,24 @@ namespace BaobabRidge
             // Unlike ReadAnimals, this must fail if the file disappeared during editing.
             string[] lines = File.ReadAllLines(filePath, Encoding.UTF8);
             int matchingIndex = -1;
-            int matchCount = 0;
             for (int i = 0; i < lines.Length; i++)
             {
                 string[] fields = lines[i].Split('|');
                 if (string.Equals(fields[0].Trim(), originalId, StringComparison.OrdinalIgnoreCase))
                 {
+                    // A second match makes the edit ambiguous; stop before writing anything.
+                    if (matchingIndex != -1)
+                    {
+                        throw new InvalidOperationException("The file contains this Animal ID more than once. Correct the duplicate IDs before saving.");
+                    }
                     matchingIndex = i;
-                    matchCount++;
                 }
             }
 
-            if (matchCount == 0)
+            if (matchingIndex == -1)
             {
                 throw new InvalidOperationException("This animal is no longer in the file. Reload before editing again.");
             }
-            if (matchCount > 1)
-            {
-                throw new InvalidOperationException("The file contains this Animal ID more than once. Correct the duplicate IDs before saving.");
-            }
-
             Animal existingAnimal;
             if (!TryReadAnimal(lines[matchingIndex], out existingAnimal))
             {

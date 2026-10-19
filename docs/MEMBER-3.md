@@ -7,7 +7,7 @@
 3. `MainForm.cs`: search, LoadForEditing, Save Changes and Clear.
 4. `FileHandler.cs`: UpdateAnimal and the small loading/parsing helpers.
 
-Update is implemented against the real file. The old practice repository, interface and unfinished TextAnimalRepository files have been removed.
+Update is implemented against the real file. Search, validation, edit state, classification and file rewriting are complete. Full Feature 3 verification still needs Victor's actual grid row-click and refresh integration.
 
 ## What happens when the user edits
 
@@ -24,7 +24,7 @@ Feedback appears in the label at the top of the form. Search-not-found changes t
 1. Check that the replacement ID matches the original.
 2. Validate the replacement through the shared rules.
 3. Use File.ReadAllLines to read the latest file into a string array.
-4. Use a for loop to find exactly one matching ID. Missing, duplicate or malformed targets fail without writing.
+4. Use a for loop to remember the matching line index. A second match is rejected immediately; missing or malformed targets also fail without writing.
 5. Replace only that array element with the new animal's ToString result.
 6. Use File.WriteAllLines to write a unique temporary file in the same folder.
 7. Use File.Replace after writing finishes. Clean up a leftover temporary file if the operation fails.
@@ -45,5 +45,7 @@ File.Replace is the one extra safety step beyond the lecture's direct WriteAllLi
 8. Set a temporary test file read-only and explain why a failed save keeps the entered values.
 
 ## Your remaining personal work
+
+As audited on 19 October, your three non-merge commits dated 12, 13 and 15 October meet the minimum volume/date requirement, and Update PR #1 is merged. This does not replace the presentation requirement or the final grid integration check. Other members must establish their own contributions on actual dates.
 
 Understand and explain each adopted method. Agree on names/signatures with the team, review their integration changes and run the checks yourself. Prepare at least three minutes of meaningful presentation contribution. Make genuine incremental changes under your own identity on actual separate days; generated commits do not replace demonstrating your own understanding or the lecturer's contribution requirements.
