@@ -11,6 +11,7 @@ namespace BaobabRidge
         private FileHandler fileHandler;
         private string editingId = string.Empty;
         private int skippedLines;
+        private DataGridView dataGrid = new DataGridView();
 
         // Opens the normal application using animals.txt beside the executable.
         public MainForm() : this(new FileHandler())
@@ -28,8 +29,53 @@ namespace BaobabRidge
         private void MainForm_Load(object sender, EventArgs e)
         {
             ClearEditor();
+            loadDataGrid();
             ShowMessage("Enter details to add an animal, or search by Animal ID to edit.");
         }
+
+        // INITIAL LOADING OF DATA GRID
+        private void loadDataGrid()
+        {
+            List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+            dataGrid.DataSource = animals;
+
+            // positioning
+            dataGrid.Dock = DockStyle.None;
+            dataGrid.Location = new System.Drawing.Point(100, 150);
+            dataGrid.Size = new System.Drawing.Size(900, 250);
+
+            // restrictions
+            dataGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGrid.ReadOnly = true;
+
+            dataGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
+
+
+            // row selection to populate input fields 
+            dataGrid.MultiSelect = false;
+            dataGrid.SelectionChanged += DataGrid_SelectionChanged; //event
+
+
+            this.Controls.Add(dataGrid);
+
+            dataGrid.BringToFront();
+
+        }
+
+        // event for row selection
+        private void DataGrid_SelectionChanged(object sender, EventArgs e)
+        {
+            // check that a row is selected
+            if (dataGrid.SelectedRows.Count > 0)
+            {
+                Animal selected = dataGrid.SelectedRows[0].DataBoundItem as Animal;
+                LoadForEditing(selected);
+            }
+
+            // exception handeling not neccessary, as we are loading in information we know must
+            // exist, since the user selected it.
+        }
+
 
         // Connection point for Victor's grid refresh after a successful Add or Update.
         private bool RefreshAnimals()
