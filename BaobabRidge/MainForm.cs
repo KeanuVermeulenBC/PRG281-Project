@@ -62,6 +62,13 @@ namespace BaobabRidge
 
         }
 
+        // RENAMING COLUMNS MUST BE DONE INSIDE THIS EVENT BEAUSE OTEHRWISE THE DATA GRID DOESN'T ACTUALLY EXIST WHEN THIS LINE IS CALLED
+        // THIS EVENT IS TRIGGERED EXPLICITLY WHEN THE GRID DOES EXIST
+        private void dataGridView1_DataBindingComplete(object sender, EventArgs e)
+        {
+            dataGrid.Columns["Id"].HeaderText = "Animal ID";
+        }
+
         // event for row selection
         private void DataGrid_SelectionChanged(object sender, EventArgs e)
         {
