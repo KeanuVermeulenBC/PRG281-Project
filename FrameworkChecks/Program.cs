@@ -184,7 +184,9 @@ internal static class Program
             TextBox id = (TextBox)Find(form, "txtId");
             Button add = (Button)Find(form, "btnAdd");
             Button save = (Button)Find(form, "btnSaveChanges");
-            Check(!id.ReadOnly && add.Enabled && !save.Enabled, "Initial Add state");
+            // Startup may select an existing animal. Clear must always return to Add mode.
+            ((Button)Find(form, "btnClear")).PerformClick();
+            Check(!id.ReadOnly && add.Enabled && !save.Enabled, "Clear returns to Add mode");
 
             Find(form, "txtSearchId").Text = " wr-0002 ";
             ((Button)Find(form, "btnSearch")).PerformClick();

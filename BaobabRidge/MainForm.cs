@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Windows.Forms;
 using System.Linq;
@@ -124,15 +123,21 @@ namespace BaobabRidge
             }
         }
 
-        // Loads the editor from Search; Victor can call this from his future row-click handler.
+        // Loads one animal into the editor, whether it came from Search or the grid.
         private void LoadForEditing(Animal animal)
         {
+            // A blank grid row has no Animal to edit.
+            if (animal == null)
+            {
+                return;
+            }
+
             editingId = animal.Id;
             txtId.Text = animal.Id;
             txtName.Text = animal.Name;
             txtSpecies.Text = animal.Species;
-            txtAge.Text = animal.Age.ToString(CultureInfo.InvariantCulture);
-            txtRecoveryScore.Text = animal.RecoveryScore.ToString(CultureInfo.InvariantCulture);
+            txtAge.Text = animal.Age.ToString();
+            txtRecoveryScore.Text = animal.RecoveryScore.ToString();
             lblClassification.Text = animal.Status + " | " + animal.HousingUnit;
             txtId.ReadOnly = true;
             btnAdd.Enabled = false;
