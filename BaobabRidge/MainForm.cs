@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
+using System.Globalization;
 
 namespace BaobabRidge
 {
@@ -213,6 +214,65 @@ namespace BaobabRidge
             ClearEditor();
             ShowMessage("Editor cleared. Select an animal or search by Animal ID.");
         }
+
+        // Calculates the full summary, shows it on the form and saves it to summary.txt.
+        private void btnGenerateSummary_Click(object sender, EventArgs e)
+        {
+            string[] statusNames = { "Critical", "Serious", "Stable", "Recovering", "Release-Ready" };
+
+            try
+            {
+                List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"); 
+                string summaryText;
+
+                if (animals.Count == 0)
+                {
+                    summaryText = "Generated: " + timestamp + Environment.NewLine
+                        + "No animal data available.";
+                }
+                else
+                {
+                    double totalAge = 0;
+                    double totalScore = 0;
+                    int[] statusCounts = new int[statusNames.Length];
+
+                    foreach (Animal animal in animals)
+                    {
+                        totalAge += animal.Age;
+                        totalScore += animal.RecoveryScore;
+                        for (int i = 0; i < statusNames.Length; i++)
+                        {
+                            if (animal.Status == statusNames[i])
+                            {
+                                statusCounts[i]++;
+                            }
+                        }
+                    }
+
+                    summaryText = "Generated: " + timestamp + Environment.NewLine
+                        + "Total animals: " + animals.Count + Environment.NewLine
+                        + "Average age: " + (totalAge / animals.Count).ToString("0.00", CultureInfo.InvariantCulture) + Environment.NewLine
+                        + "Average recovery score: " + (totalScore / animals.Count).ToString("0.00", CultureInfo.InvariantCulture);
+                    for (int i = 0; i < statusNames.Length; i++)
+                    {
+                        summaryText += Environment.NewLine + statusNames[i] + ": " + statusCounts[i];
+                    }
+                }
+
+                txtSummary.Text = summaryText;
+                fileHandler.SaveSummary(summaryText);
+                ShowMessage("Summary generated and saved to summary.txt." + SkippedMessage());
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+            }
+        }
         // Deletes the animal selected in the grid after a Yes/No confirmation.
         private void btnDelete_Click(object sender, EventArgs e)
         {
@@ -274,7 +334,6 @@ namespace BaobabRidge
                 ShowMessage("The animal was deleted, but the grid could not reload. Check the file and click Reload.");
             }
         }
-        
 
         // Returns to Add mode; Add and Delete can reuse this after successful changes.
         private void ClearEditor()
