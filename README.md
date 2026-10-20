@@ -128,12 +128,3 @@ The current suite has 86 assertions covering classification boundaries, input er
 Checks use their own temporary fixtures and do not change the application's animals.txt. Delete with no selection is covered. The Yes/No confirmation flow and the completed Summary feature still require the team's final end-to-end demonstration.
 
 See [acceptance checks](docs/ACCEPTANCE.md), [Update walkthrough](docs/MEMBER-3.md), [View implementation notes](docs/VICTOR-DATAGRID.md) and [integration notes](docs/INTEGRATION.md).
-
-## Known limitations and remaining submission work
-
-- Complete and merge Summary; main currently provides four of the five feature flows.
-- Finish the final Yes/No Delete and full Summary demonstration after integration.
-- This is a single-user text-file application; concurrent writers are not supported.
-- Keanu's Add and Dirk's Delete methods are preserved; Delete uses its existing direct rewrite implementation.
-- Expected file errors are handled by the form. Folder permissions may prevent removal of a leftover temporary file.
-- Recheck individual contribution dates and PR requirements against the actual GitHub history. Repository-wide commit volume alone does not establish every member's compliance.
