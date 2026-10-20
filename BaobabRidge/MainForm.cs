@@ -81,8 +81,9 @@ namespace BaobabRidge
         // Connection point for Victor's grid refresh after a successful Add or Update.
         private bool RefreshAnimals()
         {
-            // TODO VICTOR: load/bind the grid and return false if refreshing fails.
-            // There is no grid yet. Completed file writes can still report success.
+            List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+            dataGrid.DataSource = animals;
+
             skippedLines = 0;
             return true;
         }
@@ -204,11 +205,17 @@ namespace BaobabRidge
         {
             string selectedId;
             string selectedName;
-            if (!TryGetSelectedAnimal(out selectedId, out selectedName))
+            if (this.dataGrid.CurrentRow == null)
             {
                 ShowMessage("Select one animal in the grid before deleting.");
                 return;
             }
+
+            //from here we can assume that a row is selected, so we extract the id and name for the rest
+            Animal selectedAnimal = this.dataGrid.CurrentRow.DataBoundItem as Animal;
+            selectedId = selectedAnimal.Id;
+            selectedName = selectedAnimal.Name;
+
 
             DialogResult answer = MessageBox.Show(
                 "Delete " + selectedId + " (" + selectedName + ")? This cannot be undone.",
@@ -254,33 +261,7 @@ namespace BaobabRidge
                 ShowMessage("The animal was deleted, but the grid could not reload. Check the file and click Reload.");
             }
         }
-        // Reads the ID and name of the single selected grid row; Victor's grid is the only thing this depends on.
-        private bool TryGetSelectedAnimal(out string id, out string name)
-        {
-            id = "";
-            name = "";
-
-            DataGridView grid = pnlAnimalsView.Controls.OfType<DataGridView>().FirstOrDefault();
-            if (grid == null || grid.SelectedRows.Count != 1)
-            {
-                return false;
-            }
-
-            DataGridViewRow row = grid.SelectedRows[0];
-            Animal animal = row.DataBoundItem as Animal;
-            if (animal != null)
-            {
-                id = animal.Id;
-                name = animal.Name;
-            }
-            else if (grid.Columns.Contains("Id") && grid.Columns.Contains("Name"))
-            {
-                id = Convert.ToString(row.Cells["Id"].Value);
-                name = Convert.ToString(row.Cells["Name"].Value);
-            }
-
-            return id != "";
-        }
+        
 
         // Returns to Add mode; Add and Delete can reuse this after successful changes.
         private void ClearEditor()
