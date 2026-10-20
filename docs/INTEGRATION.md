@@ -8,7 +8,7 @@ Everyone uses the same Animal properties, AnimalRules methods, FileHandler and f
 | Victor / View | ConfigureGrid sets up the grid; RefreshAnimals loads data and handles file errors |
 | Renier / Update | Search and grid CellClick call LoadForEditing; Save calls UpdateAnimal, clears and refreshes |
 | Dirk / Delete | Existing handler uses dataGrid.CurrentRow, confirms removal, calls DeleteAnimal and refreshes |
-| Dirk / Summary | Prototype is on feature/generate-summary and still needs completion/merge |
+| Dirk / Summary | Merged through PR #3; the handler reads current records, displays the report and calls SaveSummary |
 
 ## Grid and editor
 
@@ -30,6 +30,6 @@ UpdateAnimal reads current raw lines, finds exactly one ID, changes its line and
 
 FileHandler owns the path beside the executable. New file operations must use the form's friendly exception-handling pattern rather than showing raw stack traces.
 
-## Completing Summary
+## Summary
 
-Merge current main into the Summary branch and resolve imports/layout using the completed grid/editor connections. The prototype uses CultureInfo, so retain the appropriate System.Globalization import in the file containing its completed handler. Finish the report specification before merging it to main. Do not duplicate the classification bands or create a separate Animal type.
+The Summary button uses ReadAnimals and the same Animal type. It retains Dirk's totals/status-count loop and SaveSummary method. The report includes the section 5.2 headings, aligned values, yyyy-MM-dd HH:mm timestamp and invariant-culture averages. Empty data uses the same complete layout with zero counts and N/A averages. No grid refresh or editor reset is needed because generating a report does not change animals.txt.

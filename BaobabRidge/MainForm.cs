@@ -223,41 +223,46 @@ namespace BaobabRidge
             try
             {
                 List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
-                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"); 
-                string summaryText;
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+                double totalAge = 0;
+                double totalScore = 0;
+                int[] statusCounts = new int[statusNames.Length];
 
-                if (animals.Count == 0)
+                foreach (Animal animal in animals)
                 {
-                    summaryText = "Generated: " + timestamp + Environment.NewLine
-                        + "No animal data available.";
-                }
-                else
-                {
-                    double totalAge = 0;
-                    double totalScore = 0;
-                    int[] statusCounts = new int[statusNames.Length];
-
-                    foreach (Animal animal in animals)
-                    {
-                        totalAge += animal.Age;
-                        totalScore += animal.RecoveryScore;
-                        for (int i = 0; i < statusNames.Length; i++)
-                        {
-                            if (animal.Status == statusNames[i])
-                            {
-                                statusCounts[i]++;
-                            }
-                        }
-                    }
-
-                    summaryText = "Generated: " + timestamp + Environment.NewLine
-                        + "Total animals: " + animals.Count + Environment.NewLine
-                        + "Average age: " + (totalAge / animals.Count).ToString("0.00", CultureInfo.InvariantCulture) + Environment.NewLine
-                        + "Average recovery score: " + (totalScore / animals.Count).ToString("0.00", CultureInfo.InvariantCulture);
+                    totalAge += animal.Age;
+                    totalScore += animal.RecoveryScore;
                     for (int i = 0; i < statusNames.Length; i++)
                     {
-                        summaryText += Environment.NewLine + statusNames[i] + ": " + statusCounts[i];
+                        if (animal.Status == statusNames[i])
+                        {
+                            statusCounts[i]++;
+                        }
                     }
+                }
+
+                // Empty data still has the full report, with N/A averages and zero counts.
+                string averageAge = "N/A";
+                string averageScore = "N/A";
+                if (animals.Count > 0)
+                {
+                    averageAge = (totalAge / animals.Count).ToString("0.00", CultureInfo.InvariantCulture);
+                    averageScore = (totalScore / animals.Count).ToString("0.00", CultureInfo.InvariantCulture);
+                }
+
+                // PadRight aligns values at the column shown in brief section 5.2.
+                string summaryText = "BAOBAB RIDGE WILDLIFE REHABILITATION CENTRE" + Environment.NewLine
+                    + "ANIMAL SUMMARY REPORT" + Environment.NewLine
+                    + "Generated: " + timestamp + Environment.NewLine
+                    + "----------------------------------------" + Environment.NewLine
+                    + "Total animals:".PadRight(26) + animals.Count + Environment.NewLine
+                    + "Average age (years):".PadRight(26) + averageAge + Environment.NewLine
+                    + "Average recovery score:".PadRight(26) + averageScore + Environment.NewLine
+                    + "----------------------------------------" + Environment.NewLine
+                    + "Animals per status:";
+                for (int i = 0; i < statusNames.Length; i++)
+                {
+                    summaryText += Environment.NewLine + ("  " + statusNames[i] + ":").PadRight(26) + statusCounts[i];
                 }
 
                 txtSummary.Text = summaryText;

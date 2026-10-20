@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 using BaobabRidge;
@@ -35,6 +36,7 @@ internal static class Program
             if (args.Length > 0) previewPath = args[0];
             CheckForm(previewPath);
             CheckLoadingFailures();
+            CheckDeleteAndSummary();
             Console.WriteLine("PASS: " + checks + " checks, including real file updates and form events.");
             return 0;
         }
@@ -343,6 +345,169 @@ internal static class Program
             Check(Find(form, "lblMessage").Text.Contains("data folder was not found"), "Missing folder is handled on startup");
         }
     }
+
+    // Verifies the real Delete confirmation and the required saved report, using temporary data.
+    private static void CheckDeleteAndSummary()
+    {
+        ResetFile();
+        string summaryPath = Path.Combine(testFolder, "summary.txt");
+        using (MainForm form = OpenTestForm(filePath))
+        {
+            DataGridView grid = (DataGridView)Find(form, "dataGrid");
+            grid.CurrentCell = grid.Rows[1].Cells[0];
+            typeof(DataGridView).GetMethod("OnCellClick", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(grid, new object[] { new DataGridViewCellEventArgs(0, 1) });
+            byte[] before = File.ReadAllBytes(filePath);
+            ConfirmDelete(form, false);
+            Check(SameBytes(before, File.ReadAllBytes(filePath)) && grid.Rows.Count == 3
+                && Find(form, "txtId").Text == "WR-0002", "Delete No preserves file, grid and editor");
+            ConfirmDelete(form, true);
+            string[] after = File.ReadAllLines(filePath);
+            Check(after.Length == 2 && after[0] == sampleLines[0] && after[1] == sampleLines[2],
+                "Delete Yes removes only the selected record");
+            Check(grid.Rows.Count == 2 && grid.CurrentCell == null && Find(form, "txtId").Text == ""
+                && Find(form, "btnAdd").Enabled && !Find(form, "btnSaveChanges").Enabled,
+                "Delete refreshes the grid and clears the deleted animal from editing");
+
+            grid.CurrentCell = grid.Rows[0].Cells[0];
+            File.SetAttributes(filePath, FileAttributes.ReadOnly);
+            try
+            {
+                before = File.ReadAllBytes(filePath);
+                ConfirmDelete(form, true);
+                Check(SameBytes(before, File.ReadAllBytes(filePath))
+                    && Find(form, "lblMessage").Text.Contains("Access denied"), "Read-only Delete fails safely");
+            }
+            finally { File.SetAttributes(filePath, FileAttributes.Normal); }
+            using (FileStream locked = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                ConfirmDelete(form, true);
+                Check(Find(form, "lblMessage").Text.Contains("Cannot access") && grid.Rows.Count == 2,
+                    "Locked Delete remains friendly and leaves the grid unchanged");
+            }
+            Check(SameBytes(before, File.ReadAllBytes(filePath)), "Locked Delete preserves original bytes");
+        }
+
+        ResetFile();
+        CultureInfo originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("af-ZA");
+            using (MainForm form = OpenTestForm(filePath))
+            {
+                Button summary = (Button)Find(form, "btnGenerateSummary");
+                Check(Find(form, "txtSummary") is TextBox && ((TextBox)Find(form, "txtSummary")).ReadOnly,
+                    "Summary results use a persistent read-only form control");
+                summary.PerformClick();
+                string text = File.ReadAllText(summaryPath, Encoding.UTF8);
+                Check(text == Find(form, "txtSummary").Text, "Saved Summary matches the displayed report");
+                string[] lines = text.Replace("\r\n", "\n").Split('\n');
+                DateTime generated;
+                Check(lines.Length == 14 && lines[0] == "BAOBAB RIDGE WILDLIFE REHABILITATION CENTRE"
+                    && lines[1] == "ANIMAL SUMMARY REPORT", "Summary uses required title and line count");
+                Check(DateTime.TryParseExact(lines[2].Substring("Generated: ".Length), "yyyy-MM-dd HH:mm",
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out generated)
+                    && Math.Abs((DateTime.Now - generated).TotalMinutes) < 2, "Summary timestamp uses minutes and current local time");
+                string expected = string.Join(Environment.NewLine, new string[] {
+                    "----------------------------------------",
+                    "Total animals:            3",
+                    "Average age (years):      6.33",
+                    "Average recovery score:   61.00",
+                    "----------------------------------------",
+                    "Animals per status:",
+                    "  Critical:               1",
+                    "  Serious:                0",
+                    "  Stable:                 0",
+                    "  Recovering:             1",
+                    "  Release-Ready:          1" });
+                Check(string.Join(Environment.NewLine, lines, 3, 11) == expected,
+                    "Summary uses exact layout, two decimal averages and all five status counts");
+
+                File.AppendAllText(filePath, "malformed\n");
+                summary.PerformClick();
+                Check(Find(form, "lblMessage").Text.Contains("Skipped 1 malformed line(s).")
+                    && File.ReadAllText(summaryPath).Contains("Total animals:            3"), "Summary skips malformed lines with feedback");
+                byte[] savedReport = File.ReadAllBytes(summaryPath);
+                File.SetAttributes(summaryPath, FileAttributes.ReadOnly);
+                try
+                {
+                    summary.PerformClick();
+                    Check(Find(form, "lblMessage").Text.Contains("Access denied"), "Read-only Summary output is handled");
+                }
+                finally { File.SetAttributes(summaryPath, FileAttributes.Normal); }
+                using (FileStream locked = new FileStream(summaryPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    summary.PerformClick();
+                    Check(Find(form, "lblMessage").Text.Contains("Cannot access"), "Locked Summary output is handled");
+                }
+                Check(SameBytes(savedReport, File.ReadAllBytes(summaryPath)), "Failed report saves preserve the previous report");
+                using (FileStream locked = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                    summary.PerformClick();
+                    Check(Find(form, "lblMessage").Text.Contains("Cannot access"), "Locked Summary input is handled");
+                }
+
+                File.WriteAllText(filePath, string.Empty);
+                summary.PerformClick();
+                text = File.ReadAllText(summaryPath);
+                Check(text == Find(form, "txtSummary").Text && text.Contains("Total animals:            0")
+                    && text.Contains("Average age (years):      N/A")
+                    && text.Contains("Average recovery score:   N/A"), "Empty Summary displays and saves zero total and N/A averages");
+                string[] statuses = { "Critical", "Serious", "Stable", "Recovering", "Release-Ready" };
+                foreach (string status in statuses)
+                {
+                    Check(text.Contains(("  " + status + ":").PadRight(26) + "0"), "Empty Summary includes zero for " + status);
+                }
+                Check(text.Split(new string[] { "ANIMAL SUMMARY REPORT" }, StringSplitOptions.None).Length == 2,
+                    "Regenerating Summary overwrites instead of appending");
+            }
+        }
+        finally { CultureInfo.CurrentCulture = originalCulture; }
+    }
+
+    // Answers only this test thread's Confirm Delete dialog; a timer runs inside the modal message loop.
+    private static void ConfirmDelete(MainForm form, bool yes)
+    {
+        bool answered = false;
+        bool correctDetails = false;
+        Animal selected = (Animal)((DataGridView)Find(form, "dataGrid")).CurrentRow.DataBoundItem;
+        int ticks = 0;
+        using (Timer timer = new Timer())
+        {
+            timer.Interval = 50;
+            timer.Tick += delegate
+            {
+                ticks++;
+                EnumThreadWindows(GetCurrentThreadId(), delegate(IntPtr window, IntPtr state)
+                {
+                    StringBuilder title = new StringBuilder(128);
+                    GetWindowText(window, title, title.Capacity);
+                    if (title.ToString() == "Confirm Delete")
+                    {
+                        StringBuilder message = new StringBuilder(512);
+                        GetWindowText(GetDlgItem(window, 65535), message, message.Capacity);
+                        correctDetails = message.ToString().Contains(selected.Id) && message.ToString().Contains(selected.Name);
+                        answered = true;
+                        timer.Stop();
+                        SendMessage(GetDlgItem(window, yes ? 6 : 7), 0x00F5, IntPtr.Zero, IntPtr.Zero);
+                    }
+                    return true;
+                }, IntPtr.Zero);
+                if (ticks > 100) timer.Stop();
+            };
+            timer.Start();
+            ((Button)Find(form, "btnDelete")).PerformClick();
+        }
+        Check(answered && correctDetails, "Delete confirmation identifies the selected animal");
+    }
+
+    // Windows dialog helpers are used only by the checks, never by the application.
+    private delegate bool WindowCallback(IntPtr window, IntPtr state);
+    [DllImport("user32.dll")] private static extern bool EnumThreadWindows(uint thread, WindowCallback callback, IntPtr state);
+    [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder text, int size);
+    [DllImport("user32.dll")] private static extern IntPtr GetDlgItem(IntPtr dialog, int id);
+    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 
     // Opens an off-screen form backed by the supplied temporary fixture.
     private static MainForm OpenTestForm(string path)

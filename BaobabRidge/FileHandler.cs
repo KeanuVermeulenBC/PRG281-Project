@@ -204,6 +204,7 @@ namespace BaobabRidge
             }
         }
 
+        // Removes one matching ID, preserving the remaining records in file order.
         public void DeleteAnimal(string id)
         {
             // Read the file again instead of rewriting a possibly outdated grid list.
