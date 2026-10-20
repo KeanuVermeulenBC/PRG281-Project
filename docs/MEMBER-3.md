@@ -7,17 +7,28 @@
 3. `MainForm.cs`: search, LoadForEditing, Save Changes and Clear.
 4. `FileHandler.cs`: UpdateAnimal and the small loading/parsing helpers.
 
-Update is implemented against the real file. Search, validation, edit state, classification and file rewriting are complete. Full Feature 3 verification still needs Victor's actual grid row-click and refresh integration.
+Update is implemented against the real file. Search, validation, edit state, classification and file rewriting are complete. The grid now connects to the editor; full Feature 3 verification still needs actual grid refresh after saving.
 
 ## What happens when the user edits
 
-An exact case-insensitive ID search calls `LoadForEditing`. That fills the five boxes, remembers `editingId`, makes the ID read-only, disables Add and enables Save Changes. Victor will connect his future grid row-click handler to this same method.
+An exact case-insensitive ID search and grid selection both call `LoadForEditing`. That fills the five boxes, remembers `editingId`, makes the ID read-only, disables Add and enables Save Changes. An empty selection with no Animal is ignored.
+
+Age and Recovery Score are whole numbers, so the editor uses ordinary conversions:
+
+```csharp
+txtAge.Text = animal.Age.ToString();
+txtRecoveryScore.Text = animal.RecoveryScore.ToString();
+```
+
+`ToString()` converts a number to textbox text. No culture argument is needed for these valid 0-100 values. Decimal summary averages still need the brief's two-decimal, full-stop formatting. The shared file-format code is unchanged.
 
 Save calls `AnimalRules.TryCreate`. It trims input, rejects invalid fields and creates a new Animal. The shared classification method fills its status/housing even when the score is unchanged. The form focuses the failing field and leaves the file untouched if validation fails. It does not perform Add's uniqueness check.
 
 The form calls `fileHandler.UpdateAnimal(editingId, updatedAnimal)`. It clears the editor and calls the `RefreshAnimals` connection point only after the write succeeds. That method is currently a placeholder for Victor's grid; it performs no loading or binding. If saving fails, the original file and the user's entered values remain available. Clear cancels editing without saving.
 
 Feedback appears in the label at the top of the form. Search-not-found changes the feedback but leaves the current edit alone.
+
+The form can start in edit mode if the grid selects an existing animal. Clear returns it to empty Add mode. Tests use Clear to establish that state rather than assuming startup must be blank.
 
 ## File rewriting, step by step
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -63,8 +62,7 @@ namespace BaobabRidge
             string invalidField;
             string errorMessage;
             if (!AnimalRules.TryCreate(replacement.Id, replacement.Name, replacement.Species,
-                replacement.Age.ToString(CultureInfo.InvariantCulture),
-                replacement.RecoveryScore.ToString(CultureInfo.InvariantCulture),
+                replacement.Age.ToString(), replacement.RecoveryScore.ToString(),
                 out validatedAnimal, out invalidField, out errorMessage))
             {
                 throw new InvalidOperationException(errorMessage);
