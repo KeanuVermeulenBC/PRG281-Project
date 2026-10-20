@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -63,8 +62,7 @@ namespace BaobabRidge
             string invalidField;
             string errorMessage;
             if (!AnimalRules.TryCreate(replacement.Id, replacement.Name, replacement.Species,
-                replacement.Age.ToString(CultureInfo.InvariantCulture),
-                replacement.RecoveryScore.ToString(CultureInfo.InvariantCulture),
+                replacement.Age.ToString(), replacement.RecoveryScore.ToString(),
                 out validatedAnimal, out invalidField, out errorMessage))
             {
                 throw new InvalidOperationException(errorMessage);
@@ -74,26 +72,24 @@ namespace BaobabRidge
             // Unlike ReadAnimals, this must fail if the file disappeared during editing.
             string[] lines = File.ReadAllLines(filePath, Encoding.UTF8);
             int matchingIndex = -1;
-            int matchCount = 0;
             for (int i = 0; i < lines.Length; i++)
             {
                 string[] fields = lines[i].Split('|');
                 if (string.Equals(fields[0].Trim(), originalId, StringComparison.OrdinalIgnoreCase))
                 {
+                    // A second match makes the edit ambiguous; stop before writing anything.
+                    if (matchingIndex != -1)
+                    {
+                        throw new InvalidOperationException("The file contains this Animal ID more than once. Correct the duplicate IDs before saving.");
+                    }
                     matchingIndex = i;
-                    matchCount++;
                 }
             }
 
-            if (matchCount == 0)
+            if (matchingIndex == -1)
             {
                 throw new InvalidOperationException("This animal is no longer in the file. Reload before editing again.");
             }
-            if (matchCount > 1)
-            {
-                throw new InvalidOperationException("The file contains this Animal ID more than once. Correct the duplicate IDs before saving.");
-            }
-
             Animal existingAnimal;
             if (!TryReadAnimal(lines[matchingIndex], out existingAnimal))
             {
@@ -110,9 +106,10 @@ namespace BaobabRidge
             try
             {
                 // WriteAllLines closes the temporary file before replacing the original.
-                // This extra step protects the original if writing fails partway through.
+                // Move the completed file over the original only after writing succeeds.
+                // A same-folder move avoids File.Replace's extra Windows recovery-temp files.
                 File.WriteAllLines(temporaryPath, lines, new UTF8Encoding(false));
-                File.Replace(temporaryPath, filePath, null);
+                File.Move(temporaryPath, filePath, true);
             }
             finally
             {

@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
 using BaobabRidge;
@@ -33,6 +34,7 @@ internal static class Program
             string previewPath = string.Empty;
             if (args.Length > 0) previewPath = args[0];
             CheckForm(previewPath);
+            CheckLoadingFailures();
             Console.WriteLine("PASS: " + checks + " checks, including real file updates and form events.");
             return 0;
         }
@@ -160,7 +162,8 @@ internal static class Program
             // Reading is allowed, but Windows denies replacement: tests failure after temporary writing.
             CheckFailedUpdate(handler, "WR-0002", CreateAnimal("WR-0002", 80), "Locked replacement protected");
         }
-        Check(Directory.GetFiles(testFolder, "*.tmp").Length == 0, "Failed replacement cleaned temporary file");
+        string[] temporaryFiles = Directory.GetFiles(testFolder, "*.tmp");
+        Check(temporaryFiles.Length == 0, "Failed replacement cleaned temporary file: " + string.Join(", ", temporaryFiles));
         File.Delete(filePath);
         bool missingRejected = false;
         try { handler.UpdateAnimal("WR-0002", CreateAnimal("WR-0002", 80)); }
@@ -169,7 +172,7 @@ internal static class Program
         ResetFile();
     }
 
-    // Verifies Add/Search/Update buttons and error feedback while Victor's grid is pending.
+    // Verifies the real grid, Add/Search/Update connections and editor state after each save.
     private static void CheckForm(string previewPath)
     {
         ResetFile();
@@ -183,7 +186,18 @@ internal static class Program
             TextBox id = (TextBox)Find(form, "txtId");
             Button add = (Button)Find(form, "btnAdd");
             Button save = (Button)Find(form, "btnSaveChanges");
-            Check(!id.ReadOnly && add.Enabled && !save.Enabled, "Initial Add state");
+            DataGridView grid = (DataGridView)Find(form, "dataGrid");
+            Check(!id.ReadOnly && id.Text == "" && add.Enabled && !save.Enabled, "Startup starts in Add mode");
+            Check(grid.Rows.Count == 3 && grid.SelectedRows.Count == 0 && grid.CurrentCell == null, "Startup shows records without editing one");
+            Check(grid.Parent == Find(form, "pnlAnimalsView") && grid.Dock == DockStyle.Fill, "Grid uses its resizable panel");
+            Check(grid.ReadOnly && !grid.AllowUserToAddRows && !grid.AllowUserToDeleteRows
+                && !grid.MultiSelect && grid.SelectionMode == DataGridViewSelectionMode.FullRowSelect, "Grid editing restrictions");
+            string[] headers = { "Animal ID", "Name", "Species", "Age", "Recovery Score", "Status", "Housing Unit" };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                Check(grid.Columns[i].HeaderText == headers[i]
+                    && grid.Columns[i].SortMode == DataGridViewColumnSortMode.NotSortable, "Header and file order " + i);
+            }
 
             Find(form, "txtSearchId").Text = " wr-0002 ";
             ((Button)Find(form, "btnSearch")).PerformClick();
@@ -212,7 +226,10 @@ internal static class Program
 
             save.PerformClick();
             Check(File.ReadAllLines(filePath)[1].Contains("|80|Release-Ready|Pre-Release Camp"), "UI saves real file");
-            Check(id.Text == "" && !id.ReadOnly && add.Enabled && !save.Enabled, "Save resets editor without a grid");
+            Check(id.Text == "" && !id.ReadOnly && add.Enabled && !save.Enabled
+                && grid.SelectedRows.Count == 0 && grid.CurrentCell == null, "Save returns to empty Add mode");
+            Check(((Animal)grid.Rows[1].DataBoundItem).RecoveryScore == 80
+                && ((Animal)grid.Rows[1].DataBoundItem).Status == "Release-Ready", "Update refreshes displayed classification");
 
             Find(form, "txtSearchId").Text = "WR-0004";
             ((Button)Find(form, "btnSearch")).PerformClick();
@@ -220,6 +237,19 @@ internal static class Program
             ((Button)Find(form, "btnClear")).PerformClick();
             Check(id.Text == "" && !save.Enabled && Find(form, "txtName").Text == ""
                 && Find(form, "txtSearchId").Text == "", "Clear empties editor");
+
+            grid.CurrentCell = grid.Rows[2].Cells[0];
+            grid.Rows[2].Selected = true;
+            // Raise the real CellClick event without changing the application's visibility.
+            typeof(DataGridView).GetMethod("OnCellClick", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(grid, new object[] { new DataGridViewCellEventArgs(0, 2) });
+            Check(id.Text == "WR-0004" && id.ReadOnly && !add.Enabled && save.Enabled, "Row click loads the shared editor");
+            ((Button)Find(form, "btnClear")).PerformClick();
+            Check(grid.SelectedRows.Count == 0 && grid.CurrentCell == null && id.Text == "", "Clear removes the selected animal");
+            byte[] beforeDelete = File.ReadAllBytes(filePath);
+            ((Button)Find(form, "btnDelete")).PerformClick();
+            Check(SameBytes(beforeDelete, File.ReadAllBytes(filePath))
+                && Find(form, "lblMessage").Text.Contains("Select one animal"), "Delete after Clear asks for selection");
 
             string beforeAdd = File.ReadAllText(filePath);
             id.Text = "wr-0009";
@@ -233,7 +263,9 @@ internal static class Program
                 && File.ReadAllLines(filePath)[3] == "WR-0009|New animal|Serval|2|20|Serious|High-Dependency Ward",
                 "Keanu's Add appends without changing existing records");
             Check(id.Text == "" && add.Enabled && !save.Enabled
-                && Find(form, "lblMessage").Text.Contains("Added WR-0009"), "Add success resets editor without a grid");
+                && Find(form, "lblMessage").Text.Contains("Added WR-0009"), "Add success returns to Add mode");
+            Check(grid.Rows.Count == 4 && ((Animal)grid.Rows[3].DataBoundItem).Id == "WR-0009"
+                && grid.CurrentCell == null, "Add refreshes grid with no duplicates or automatic edit");
 
             id.Text = "wr-0009";
             Find(form, "txtName").Text = "Duplicate animal";
@@ -256,6 +288,72 @@ internal static class Program
                 }
             }
         }
+    }
+
+    // Exercises missing, empty, malformed, locked and missing-folder data through the real form.
+    private static void CheckLoadingFailures()
+    {
+        File.Delete(filePath);
+        using (MainForm form = OpenTestForm(filePath))
+        {
+            Check(File.Exists(filePath) && ((DataGridView)Find(form, "dataGrid")).Rows.Count == 0,
+                "Startup creates an empty missing file");
+        }
+
+        ResetFile();
+        File.AppendAllText(filePath, "malformed\nWR-7777|Bad|Cat|letters|50|Stable|Recovery Ward\n");
+        using (MainForm form = OpenTestForm(filePath))
+        {
+            string message = Find(form, "lblMessage").Text;
+            Check(((DataGridView)Find(form, "dataGrid")).Rows.Count == 3
+                && message.Contains("Skipped 2 malformed line(s).")
+                && message.IndexOf("Skipped") == message.LastIndexOf("Skipped"), "Startup reports one skipped-line total");
+            Find(form, "txtSearchId").Text = "WR-0002";
+            ((Button)Find(form, "btnSearch")).PerformClick();
+            Find(form, "txtRecoveryScore").Text = "80";
+            ((Button)Find(form, "btnSaveChanges")).PerformClick();
+            Check(Find(form, "lblMessage").Text.Contains("Saved WR-0002")
+                && Find(form, "lblMessage").Text.Contains("Skipped 2 malformed line(s)."), "Save retains the refresh skipped count");
+
+            MethodInfo refresh = typeof(MainForm).GetMethod("RefreshAnimals", BindingFlags.Instance | BindingFlags.NonPublic);
+            refresh.Invoke(form, null);
+            refresh.Invoke(form, null);
+            Check(((DataGridView)Find(form, "dataGrid")).Rows.Count == 3
+                && !Find(form, "btnSaveChanges").Enabled, "Repeated refresh does not duplicate rows or enter edit mode");
+
+            Find(form, "txtName").Text = "Unsaved input";
+            using (FileStream locked = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                bool loaded = (bool)refresh.Invoke(form, null);
+                Check(!loaded && Find(form, "lblMessage").Text.Contains("Cannot access")
+                    && Find(form, "txtName").Text == "Unsaved input"
+                    && ((DataGridView)Find(form, "dataGrid")).Rows.Count == 3,
+                    "Failed refresh preserves the grid and inputs with friendly feedback");
+            }
+        }
+
+        using (FileStream locked = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        using (MainForm form = OpenTestForm(filePath))
+        {
+            Check(Find(form, "lblMessage").Text.Contains("Cannot access")
+                && Find(form, "btnAdd").Enabled, "Locked startup stays open with friendly feedback");
+        }
+        using (MainForm form = OpenTestForm(Path.Combine(testFolder, "missing-folder", "animals.txt")))
+        {
+            Check(Find(form, "lblMessage").Text.Contains("data folder was not found"), "Missing folder is handled on startup");
+        }
+    }
+
+    // Opens an off-screen form backed by the supplied temporary fixture.
+    private static MainForm OpenTestForm(string path)
+    {
+        MainForm form = new MainForm(new FileHandler(path));
+        form.StartPosition = FormStartPosition.Manual;
+        form.Location = new Point(-10000, -10000);
+        form.ShowInTaskbar = false;
+        form.Show();
+        Application.DoEvents();
+        return form;
     }
 
     // Creates a valid replacement through the same shared method as the form.

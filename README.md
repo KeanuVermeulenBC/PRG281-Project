@@ -1,80 +1,130 @@
 # Baobab Ridge Wildlife Rehabilitation Records System
 
-PRG2782 Project 2026. The GitHub repository is named `PRG281-Project`.
+PRG2782 Project 2026. A C# Windows Forms application for recording animals in rehabilitation, calculating their recovery classification and maintaining UTF-8 text-file records.
 
-## Current status
+Repository: [KeanuVermeulenBC/PRG282-Project](https://github.com/KeanuVermeulenBC/PRG282-Project)
 
-**Keanu's Add feature and Member 3's Update feature save to the real animals.txt file.** Enter a new animal and click Add, or search by ID to edit an existing animal and click Save Changes. Successful saves clear the editor and return it to Add mode. Closing and reopening the application keeps saved changes.
+## Team
 
-The project contains the shared model/rules, file reading used by Search and eight sample records. **Victor's DataGridView is pending:** its control, columns, binding, startup display, Reload button and row-click handler have been removed so he can implement them. The form has a blank reserved area. Delete and Summary are still pending.
+| Member | Name | Student number | Responsibility |
+| --- | --- | --- | --- |
+| 1 | Keanu Vermeulen | 604066 | Model, shared rules and Add |
+| 2 | Johan Victor Liebenberg | 604957 | View, DataGridView and loading/error handling |
+| 3 | Renier Van Rooyen | 604214 | Update, edit mode and file rewriting |
+| 4 | Dirk Geldenhuys | 603556 | Delete, Summary and repository documentation |
 
-This is AI-assisted code. Review and understand it and follow the lecturer's rules on permitted assistance and attribution. It is not a claim of independently completed assessed work.
+## Feature status
 
-## Build and run
+| Feature | Current main branch |
+| --- | --- |
+| Add | Validates inputs, checks unique IDs, appends a record, shows classification and refreshes the grid |
+| View | Loads valid records on startup, displays the seven required columns in file order, reports malformed lines and handles missing/locked files |
+| Update | Loads by row click or exact case-insensitive ID search, validates edits, recalculates classification, safely replaces the target record and returns to Add mode |
+| Delete | Dirk's button, Yes/No confirmation and file-removal method are present; the shared grid refresh is connected |
+| Summary | Not available on main; an unfinished prototype is on feature/generate-summary |
 
-Use Windows and Visual Studio with the .NET desktop development workload and .NET 8 support (or a compatible newer SDK).
+**The project still needs the completed Summary feature merged before it meets all five feature requirements.** The current Summary prototype shows only total animals and average age. It still needs average recovery score, all five status counts, two-decimal formatting, the N/A empty case and the exact timestamped summary.txt output.
 
-1. Clone or pull `main`.
-2. Open `BaobabRidge.sln`.
-3. Set `BaobabRidge` as the startup project and press F5.
+## Requirements and setup
 
-From the repository folder:
+- Windows.
+- .NET 8 SDK or a compatible newer SDK, or Visual Studio with the **.NET desktop development** workload and .NET 8 support.
+- No database, storage NuGet package or external service is required.
+
+Clone the repository and open the solution:
 
 ```powershell
+git clone https://github.com/KeanuVermeulenBC/PRG282-Project.git
+cd PRG282-Project
 dotnet build BaobabRidge.sln
 dotnet run --project BaobabRidge
-dotnet run --project FrameworkChecks
 ```
 
-There is no practice mode or `--file` switch anymore. The program always uses `animals.txt` beside its executable. The starter file is copied there with **Copy if newer**.
+In Visual Studio, open BaobabRidge.sln, set BaobabRidge as the startup project, build and press F5.
 
-## Simple code structure
+## Using the application
+
+**Startup / View:** valid animals appear in a read-only grid in file order. Cells cannot be edited and rows cannot be added/deleted directly. The editor starts empty in Add mode. Malformed lines are skipped and one aggregate count appears in the feedback label.
+
+**Add:** enter Animal ID, Name, Species, Age and Recovery Score, then click Add. A valid new animal is appended to animals.txt. The calculated status/housing are displayed, the grid reloads and the inputs clear. Invalid or duplicate inputs are rejected.
+
+**Update:** click an animal's row or search for its exact ID. Search ignores case and surrounding spaces. The shared inputs enter edit mode: ID is read-only, Add is disabled and Save Changes is enabled. Save validates and recalculates status/housing, changes only that record, reloads the grid and clears the editor. Clear cancels editing without writing. A failed save keeps the entered values available.
+
+**Delete:** click a row and press Delete. The confirmation names the animal's ID and name. No cancels; Yes removes the selected record. The grid reloads and the editor clears if it contained the deleted animal. With no selected animal, the application asks for a selection.
+
+The top feedback label shows validation errors, skipped-line totals, file errors and successful actions.
+
+## Validation and classification
+
+Inputs are trimmed before validation. IDs are normalized to uppercase.
+
+| Field | Rule |
+| --- | --- |
+| Animal ID | WR- followed by exactly four digits; unique when adding; immutable when updating |
+| Name / Species | 1-30 characters; no pipe character or line break |
+| Age / Recovery Score | Whole numbers from 0 to 100 |
+| Status / Housing Unit | Calculated, never entered manually |
+
+Both Add and Update use AnimalRules.TryCreate and the same ClassifyAnimal method.
+
+| Recovery score | Status | Housing unit |
+| --- | --- | --- |
+| 0-19 | Critical | Intensive Care Unit |
+| 20-39 | Serious | High-Dependency Ward |
+| 40-59 | Stable | Recovery Ward |
+| 60-79 | Recovering | Outdoor Enclosure |
+| 80-100 | Release-Ready | Pre-Release Camp |
+
+## Data files
+
+### animals.txt
+
+- UTF-8, one animal per line, seven pipe-separated fields, no header.
+- Field order: `ID|Name|Species|Age|Score|Status|Housing Unit`.
+- Located beside the running executable, using AppContext.BaseDirectory.
+- The repository includes eight fictional starter animals covering all five statuses.
+- The project copies the starter file to the output directory with **Copy if newer**.
+
+Example:
+
+```text
+WR-0002|Naledi|Serval|3|79|Recovering|Outdoor Enclosure
+```
+
+A missing file is created empty. Malformed lines are skipped during loading. Update preserves unrelated raw lines, including malformed lines, and writes a unique temporary file beside the original. Once writing succeeds, File.Move overwrites the destination with the completed file. Failed updates preserve the original and clean up the application's temporary file where permissions allow.
+
+The source starter file and the executable's data file are separate copies. Inspect the output copy to see saved edits; keep a backup of important demo data before rebuilding with a newer starter file.
+
+### summary.txt - remaining feature work
+
+The completed Summary feature must display and save total animals, average age, average recovery score and counts for all five statuses, including zero counts. It must overwrite summary.txt beside the executable using the exact layout in brief section 5.2, timestamp yyyy-MM-dd HH:mm and invariant-culture two-decimal averages. For empty data, counts are 0 and both averages are N/A.
+
+Generated summary.txt is excluded from Git. This report is not yet generated by main.
+
+## Code organisation
 
 | File | Purpose |
 | --- | --- |
-| `Animal.cs` | Normal class with properties, constructor and a pipe-delimited ToString method |
-| `AnimalRules.cs` | Shared validation and one if/else classification method |
-| `FileHandler.cs` | ReadAnimals, parsing and safe UpdateAnimal file rewriting |
-| `MainForm.cs` | Add/Search/Update events, input boxes, form state and friendly messages |
-| `MainForm.Designer.cs` | Control layout and event connections |
-| `Program.cs` | Starts the form |
+| Animal.cs | Animal properties, grid display names and pipe-separated record formatting |
+| AnimalRules.cs | Shared validation and classification |
+| FileHandler.cs | File loading, Add, Update and Delete operations |
+| MainForm.cs | Event handlers, editor state, grid configuration/refresh and friendly feedback |
+| MainForm.Designer.cs | Form layout and named controls |
+| Program.cs | Application entry point |
+| FrameworkChecks/Program.cs | Automated checks using isolated temporary files |
 
-The structure follows the class, List, FileHandler and text-file examples in the saved lecture materials. See [coding references](docs/CODING-STYLE.md). The application uses explicit types, ordinary methods and loops; it has no repository interface, records, lambda handlers or LINQ.
+The code uses ordinary classes, explicit types, named events and loops, following the course's FileHandler and collections examples. Victor's grid and display-name attributes are retained. Grid CellClick opens the editor; programmatic binding does not. The shared RefreshAnimals method updates the same grid after every completed write.
 
-## Feature ownership
+## Verification
 
-| Owner | Current support | Work still to complete |
-| --- | --- | --- |
-| Member 1: Keanu | Add, duplicate ID check, append-only saving and shared rules | Integrate with Victor's future refresh method |
-| Member 2: Victor | Blank view area and shared file-reading/error helpers available | Implement DataGridView, startup display, refresh and row selection |
-| Member 3 | Search, edit state, validation and real file update | Connect Victor's row selection to LoadForEditing |
-| Member 4 | Shared data access and UI helpers available | Implement Delete and Summary; finish team documentation |
+Run the checks on Windows:
 
-## Team details
+```powershell
+dotnet run --project FrameworkChecks
+```
 
-| Role | Name | Student number |
-| --- | --- | --- |
-| Member 1 | Keanu Vermeulen | 604066 |
-| Member 2 | TO COMPLETE | TO COMPLETE |
-| Member 3 | TO COMPLETE | TO COMPLETE |
-| Member 4 | TO COMPLETE | TO COMPLETE |
+The current suite has 86 assertions covering classification boundaries, input errors, Add/Update persistence, other-record preservation, duplicate/missing IDs, read-only/locked files, Update temporary-file cleanup, exact grid headers, selection restrictions, row-click editing, refresh without duplicates, returning to Add mode, malformed-line notices and startup/refresh error handling.
 
-## File formats
+Checks use their own temporary fixtures and do not change the application's animals.txt. Delete with no selection is covered. The Yes/No confirmation flow and the completed Summary feature still require the team's final end-to-end demonstration.
 
-`animals.txt` is UTF-8 with seven pipe-separated fields per line, no header:
-`ID|Name|Species|Age|Score|Status|Housing Unit`.
-The starter file has eight fictional animals covering all five statuses. Loading skips malformed lines and reports their total once. Updates preserve unrelated lines, including malformed lines, and replace only the target record.
-
-`summary.txt` is still to be implemented by Member 4. It must be generated beside the executable, overwritten each time, and use the exact brief section 5.2 layout: `yyyy-MM-dd HH:mm`, invariant-culture two-decimal averages, all five status counts and `N/A` averages for empty data. It is excluded from Git.
-
-## Validation and limitations
-
-The checks exercise real temporary files, classification boundaries, invalid input, first/middle/last record preservation, reopening, missing/duplicate IDs, malformed lines, read-only files, a Windows replacement lock, Keanu's Add flow and Search/Update form events. Grid checks will return when Victor adds the grid. See [acceptance checks](docs/ACCEPTANCE.md).
-
-This is a single-user text-file application. Saving rereads current data, but simultaneous writers during the read/replace operation are not supported. Close other writers while saving. A locked file produces a friendly error. The temporary-file replacement protects the original against a failed write; it is not a multi-user database transaction.
-
-## Team workflow
-
-Read [Member 3's guide](docs/MEMBER-3.md), [Victor's DataGridView handoff](docs/VICTOR-DATAGRID.md) and [integration notes](docs/INTEGRATION.md). Keanu's existing Add commits were merged from feature/add-animal with their original authorship. The grid removal was requested directly on main. Future assessed feature work should still follow the brief's feature-branch/PR requirements. Delete and Summary need separate feature branches even if Member 4 owns both.
-
-The team needs at least 15 meaningful commits overall, at least three per member and work on at least three actual days, plus a merged PR per member. Four members making three commits each is only 12. Use correct identities and real dates. The existing first commit has only a README rather than the blank-project setup described in the brief; preserve history and clarify that discrepancy with the lecturer.
+See [acceptance checks](docs/ACCEPTANCE.md), [Update walkthrough](docs/MEMBER-3.md), [View implementation notes](docs/VICTOR-DATAGRID.md) and [integration notes](docs/INTEGRATION.md).

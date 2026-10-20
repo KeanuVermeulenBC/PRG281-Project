@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Windows.Forms;
-using System.Linq;
+using System.Globalization;
 
 namespace BaobabRidge
 {
@@ -12,6 +11,7 @@ namespace BaobabRidge
         private FileHandler fileHandler;
         private string editingId = string.Empty;
         private int skippedLines;
+        private DataGridView dataGrid = new DataGridView();
 
         // Opens the normal application using animals.txt beside the executable.
         public MainForm() : this(new FileHandler())
@@ -23,22 +23,77 @@ namespace BaobabRidge
         {
             this.fileHandler = fileHandler;
             InitializeComponent();
+            ConfigureGrid();
         }
 
-        // Starts in Add mode; Victor will connect his startup grid loading here.
+        // Starts with an empty editor and loads the file using friendly error handling.
         private void MainForm_Load(object sender, EventArgs e)
         {
             ClearEditor();
-            ShowMessage("Enter details to add an animal, or search by Animal ID to edit.");
+            RefreshAnimals();
         }
 
-        // Connection point for Victor's grid refresh after a successful Add or Update.
+        // Configures Victor's grid once; file data is loaded separately by RefreshAnimals.
+        private void ConfigureGrid()
+        {
+            dataGrid.Name = "dataGrid";
+            dataGrid.Dock = DockStyle.Fill;
+            dataGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dataGrid.ReadOnly = true;
+            dataGrid.AllowUserToAddRows = false;
+            dataGrid.AllowUserToDeleteRows = false;
+            dataGrid.MultiSelect = false;
+            dataGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGrid.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dataGrid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells;
+            dataGrid.RowHeadersVisible = false;
+            // DisplayName attributes on Animal provide the seven required column headers.
+            dataGrid.DataBindingComplete += dataGrid_DataBindingComplete;
+            dataGrid.CellClick += dataGrid_CellClick;
+            pnlAnimalsView.Controls.Add(dataGrid);
+        }
+
+        // Keeps records in file order instead of allowing header clicks to sort them.
+        private void dataGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
+        {
+            foreach (DataGridViewColumn column in dataGrid.Columns)
+            {
+                column.SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+        }
+
+        // Only a user's row click opens the editor; programmatic refreshes do not enter edit mode.
+        private void dataGrid_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.RowIndex < dataGrid.Rows.Count)
+            {
+                Animal selected = dataGrid.Rows[e.RowIndex].DataBoundItem as Animal;
+                LoadForEditing(selected);
+            }
+        }
+
+        // Loads a fresh snapshot, clears selection and reports skipped lines once per load.
         private bool RefreshAnimals()
         {
-            // TODO VICTOR: load/bind the grid and return false if refreshing fails.
-            // There is no grid yet. Completed file writes can still report success.
-            skippedLines = 0;
-            return true;
+            try
+            {
+                // Read first so a failed reload leaves the currently displayed records available.
+                List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+                dataGrid.DataSource = animals;
+                dataGrid.ClearSelection();
+                dataGrid.CurrentCell = null;
+                ShowMessage("Loaded " + animals.Count + " animals." + SkippedMessage());
+                return true;
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+            }
+            return false;
         }
 
         // Uses a foreach loop to find one exact ID, ignoring upper/lower case.
@@ -77,15 +132,21 @@ namespace BaobabRidge
             }
         }
 
-        // Loads the editor from Search; Victor can call this from his future row-click handler.
+        // Loads one animal into the editor, whether it came from Search or the grid.
         private void LoadForEditing(Animal animal)
         {
+            // A blank grid row has no Animal to edit.
+            if (animal == null)
+            {
+                return;
+            }
+
             editingId = animal.Id;
             txtId.Text = animal.Id;
             txtName.Text = animal.Name;
             txtSpecies.Text = animal.Species;
-            txtAge.Text = animal.Age.ToString(CultureInfo.InvariantCulture);
-            txtRecoveryScore.Text = animal.RecoveryScore.ToString(CultureInfo.InvariantCulture);
+            txtAge.Text = animal.Age.ToString();
+            txtRecoveryScore.Text = animal.RecoveryScore.ToString();
             lblClassification.Text = animal.Status + " | " + animal.HousingUnit;
             txtId.ReadOnly = true;
             btnAdd.Enabled = false;
@@ -143,7 +204,7 @@ namespace BaobabRidge
             }
             else
             {
-                ShowMessage("The update was saved, but the grid could not reload. Check the file and click Reload.");
+                ShowMessage("The update was saved, but the animal list could not reload. Check file access and reopen the application.");
             }
         }
 
@@ -157,7 +218,7 @@ namespace BaobabRidge
         // Calculates the full summary, shows it on the form and saves it to summary.txt.
         private void btnGenerateSummary_Click(object sender, EventArgs e)
         {
-            string[] statusNames = { "Status 1", "Status 2", "Status 3", "Status 4", "Status 5" };
+            string[] statusNames = { "Critical", "Serious", "Stable", "Recovering", "Release-Ready" };
 
             try
             {
@@ -217,11 +278,17 @@ namespace BaobabRidge
         {
             string selectedId;
             string selectedName;
-            if (!TryGetSelectedAnimal(out selectedId, out selectedName))
+            if (this.dataGrid.CurrentRow == null)
             {
                 ShowMessage("Select one animal in the grid before deleting.");
                 return;
             }
+
+            //from here we can assume that a row is selected, so we extract the id and name for the rest
+            Animal selectedAnimal = this.dataGrid.CurrentRow.DataBoundItem as Animal;
+            selectedId = selectedAnimal.Id;
+            selectedName = selectedAnimal.Name;
+
 
             DialogResult answer = MessageBox.Show(
                 "Delete " + selectedId + " (" + selectedName + ")? This cannot be undone.",
@@ -267,53 +334,6 @@ namespace BaobabRidge
                 ShowMessage("The animal was deleted, but the grid could not reload. Check the file and click Reload.");
             }
         }
-        // Finds the animals grid anywhere on the form and reads the single selected row.
-        private bool TryGetSelectedAnimal(out string id, out string name)
-        {
-            id = string.Empty;
-            name = string.Empty;
-
-            DataGridView grid = FindGrid(this);
-            if (grid == null || grid.SelectedRows.Count != 1)
-            {
-                return false;
-            }
-
-            DataGridViewRow row = grid.SelectedRows[0];
-            Animal animal = row.DataBoundItem as Animal;
-            if (animal != null)
-            {
-                id = animal.Id;
-                name = animal.Name;
-            }
-            else
-            {
-                // Fallback for a grid filled by hand: uses the first two cells (ID, then Name).
-                id = Convert.ToString(row.Cells[0].Value);
-                name = Convert.ToString(row.Cells[1].Value);
-            }
-
-            return id != string.Empty;
-        }
-
-        // Looks through all controls (including nested ones) for the first DataGridView.
-        private DataGridView FindGrid(Control parent)
-        {
-            foreach (Control child in parent.Controls)
-            {
-                DataGridView grid = child as DataGridView;
-                if (grid != null)
-                {
-                    return grid;
-                }
-                DataGridView nested = FindGrid(child);
-                if (nested != null)
-                {
-                    return nested;
-                }
-            }
-            return null;
-        }
 
         // Returns to Add mode; Add and Delete can reuse this after successful changes.
         private void ClearEditor()
@@ -329,6 +349,8 @@ namespace BaobabRidge
             btnAdd.Enabled = true;
             btnSaveChanges.Enabled = false;
             lblClassification.Text = "Status and housing are calculated from the recovery score.";
+            dataGrid.ClearSelection();
+            dataGrid.CurrentCell = null;
             txtId.Focus();
         }
 
