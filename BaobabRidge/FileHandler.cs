@@ -106,9 +106,10 @@ namespace BaobabRidge
             try
             {
                 // WriteAllLines closes the temporary file before replacing the original.
-                // This extra step protects the original if writing fails partway through.
+                // Move the completed file over the original only after writing succeeds.
+                // A same-folder move avoids File.Replace's extra Windows recovery-temp files.
                 File.WriteAllLines(temporaryPath, lines, new UTF8Encoding(false));
-                File.Replace(temporaryPath, filePath, null);
+                File.Move(temporaryPath, filePath, true);
             }
             finally
             {

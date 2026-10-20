@@ -14,6 +14,6 @@ The application keeps explicit using statements and types, block namespaces, ord
 Two project-specific choices extend the basic examples:
 
 - The file path is based on the executable directory instead of a hardcoded user folder, as required by the project.
-- Updates write a temporary file and then call File.Replace so a failed write does not truncate the original. Comments explain this extra step.
+- Updates write a same-folder temporary file and then call File.Move with overwrite so a failed write does not truncate the original. Comments explain this extra step.
 
 The forms, helper names and validation messages are tailored to this project; this is not a verbatim copy of the lecturer's implementation. The shared model and rules should be reviewed with Member 1, and the loading/error support with Member 2.

@@ -1,34 +1,31 @@
-# Update acceptance checks
+# Acceptance checks
 
-Run `dotnet run --project FrameworkChecks` on Windows. It uses a unique temporary folder and does not change the application's animals.txt. No test packages are required. DataGridView checks are pending Victor's implementation.
+Run dotnet run --project FrameworkChecks on Windows. The 86 assertions use a unique temporary folder and do not change the application's animals.txt. Reflection is confined to the test runner to raise the grid click and call refresh; it is not part of the product workflow.
 
 ## Automated coverage
 
-- Both edges of all five classification bands.
-- Trimming, uppercase IDs, invalid ID format, blank/long/pipe text and invalid numbers.
-- Missing file creation and malformed-line counting.
-- First, middle and last record updates, preserving count, order and unrelated lines.
-- Reopening through a new FileHandler confirms persistence.
-- Reclassification even when the score is unchanged.
-- Preservation of an unrelated edit made after the grid snapshot.
-- Rejection of missing/duplicate IDs, changed IDs and invalid replacement fields.
-- Read-only protection and a Windows file handle that allows reading but denies replacement.
-- Original bytes preserved after failed writes and temporary-file cleanup.
-- A file removed during editing is not silently recreated by Save.
-- Add appends one record without altering existing records, returns to Add mode and rejects duplicate IDs.
-- Real form startup, exact search, validation focus, failed-save state, successful save and Clear without a grid dependency.
+- Both edges of every classification band; trimming and ID normalization.
+- Invalid ID/text/age/score input, field feedback and focus.
+- First/middle/last file updates, preserved record order, reopening and unchanged-score classification.
+- Missing/duplicate targets, immutable IDs and invalid replacements.
+- Original bytes preserved on read-only/locked-file failures and temporary-file cleanup.
+- Missing-file creation, empty grid, malformed records and skipped-line totals.
+- Exact grid headers, file order, read-only single-row selection and disabled direct row changes.
+- Row click and Search reach the same edit state.
+- Save/Add refresh the displayed records without duplicates or automatic editing.
+- Clear resets inputs and removes selection; Delete after Clear asks for a selection.
+- Locked startup, failed refresh and missing-folder errors remain friendly and preserve available data/inputs.
 
-## Manual team demo checks
+## Final manual demonstration
 
-1. Add a new animal and verify its record is appended to animals.txt.
-2. Load WR-0002 by lowercase ID search. After Victor adds the grid, verify row clicks reach the same editor.
-3. Search a partial or missing ID while editing. Your current edit should remain.
-4. Change 79 to 80 and save. Confirm Release-Ready / Pre-Release Camp.
-5. Compare animals.txt before and after: only the target record changes.
-6. Restart and confirm the saved value remains.
-7. Try invalid inputs and verify both the field-specific feedback and cursor position.
-8. Use a copy of your data to test an empty file, missing folder and file-in-use error.
-9. After Victor adds the grid, verify seven columns, startup loading, read-only whole-row selection and refresh after Add/Update.
-10. Repeat with the other members' features after integration.
+1. Start with all eight supplied animals visible and the editor empty.
+2. Add an animal and show classification, grid refresh and one validation error.
+3. Load WR-0002 by lowercase ID search, then by row click.
+4. Change 79 to 80 and save. Show Release-Ready / Pre-Release Camp, refreshed grid and empty Add mode.
+5. Restart to prove persistence and compare file lines to show only the target changed.
+6. Select an animal and test Delete No, then Yes. Confirm only one record is removed and the grid/editor remain consistent.
+7. Complete Summary, then verify every figure on the form and exact summary.txt output, including empty data.
+8. Demonstrate a read-only or genuinely locked file error using a copy of the data.
+9. Repeat from a fresh clone and prepare the final source ZIP.
 
-Opening a file in a text editor may not lock it. The automated runner uses an actual Windows file handle to test replacement failure. Concurrent file writers are outside the scope of this application.
+An ordinary text editor may not lock the file. The runner uses real Windows file handles to test failure cases. Concurrent external writers are outside the supported single-user design.

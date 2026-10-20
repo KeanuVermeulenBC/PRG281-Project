@@ -1,24 +1,21 @@
-# Victor: DataGridView handoff
+# View implementation notes
 
-The earlier DataGridView implementation has been removed so you can build Feature 2 yourself. Keanu's Add and Member 3's Search/Update still save to animals.txt.
+Victor's DataGridView and Animal display-name attributes are retained and integrated with Add, Update and Delete.
 
-## Where your work connects
+## Flow
 
-- `MainForm.Designer.cs`: `pnlAnimalsView` is a blank panel reserved for your grid. Add a DataGridView there and give it a meaningful name.
-- `MainForm_Load`: connect your startup load after ClearEditor.
-- `RefreshAnimals()`: replace the TODO with your loading/binding code. Add and Update already call this after successful writes. Return false on a load error so their existing feedback can report it.
-- `fileHandler.ReadAnimals(out skippedLines)`: shared parser used by Search; returns valid animals in file order and the malformed-line count. Keep it available to the other features.
-- `LoadForEditing(Animal animal)`: call this from your row-click handler. It fills the shared inputs, locks the ID and sets edit mode.
-- `ClearEditor()`: add clearing of your grid selection here if appropriate, while keeping the existing input/mode reset.
-- `ShowFileError` and `ShowMessage`: reuse the friendly error and feedback helpers.
+1. MainForm's constructor builds the controls and calls ConfigureGrid once.
+2. MainForm_Load clears the editor and calls RefreshAnimals.
+3. RefreshAnimals reads valid records, binds a fresh list in file order, clears selection and reports skipped lines. File errors are handled without closing the form.
+4. A grid CellClick calls LoadForEditing, which is also used by ID Search.
+5. Successful writes call the same refresh method. Rebinding never enters edit mode by itself.
 
-## Requirements to implement
+The grid fills pnlAnimalsView and resizes with the form. It is read-only, uses whole-row single selection, disallows direct add/delete and disables column sorting. Long values wrap into readable rows. The seven headers come from the model's DisplayName attributes.
 
-1. Load records on startup with columns Animal ID, Name, Species, Age, Recovery Score, Status, Housing Unit, in that order.
-2. Bind the matching Animal properties: Id, Name, Species, Age, RecoveryScore, Status, HousingUnit.
-3. Make the grid read-only, select a whole row and prevent direct row creation/deletion.
-4. Keep file order, refresh without duplicates after changes and display the skipped-line count once per load.
-5. Connect row selection to the existing editor. Search and row selection must use the same inputs.
-6. Verify empty/missing files and file errors. Restore grid checks in FrameworkChecks as you implement the feature.
+## Why CellClick is used
 
-Use your feature branch and a pull request for your contribution. Avoid copying the removed grid back unchanged; write and explain your own implementation.
+SelectionChanged also runs when DataSource is rebound. Loading the editor from that event caused a successful Save to reopen the first animal and disable Add again. CellClick opens edits only after a deliberate row click. Clear and refresh both remove the selected/current row.
+
+## Checks
+
+FrameworkChecks covers the real startup grid, header order, restrictions, row-click connection, Clear, Add/Update refresh, skipped-line notice, locked startup, failed refresh and missing folders. The tests use temporary data; the group should still rehearse the live demonstration with the final project.

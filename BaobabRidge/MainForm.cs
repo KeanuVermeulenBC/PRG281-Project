@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
-using System.Linq;
 
 namespace BaobabRidge
 {
@@ -23,75 +22,77 @@ namespace BaobabRidge
         {
             this.fileHandler = fileHandler;
             InitializeComponent();
+            ConfigureGrid();
         }
 
-        // Starts in Add mode; Victor will connect his startup grid loading here.
+        // Starts with an empty editor and loads the file using friendly error handling.
         private void MainForm_Load(object sender, EventArgs e)
         {
             ClearEditor();
-            loadDataGrid();
-            ShowMessage("Enter details to add an animal, or search by Animal ID to edit.");
+            RefreshAnimals();
         }
 
-        // INITIAL LOADING OF DATA GRID
-        private void loadDataGrid()
+        // Configures Victor's grid once; file data is loaded separately by RefreshAnimals.
+        private void ConfigureGrid()
         {
-            List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
-            dataGrid.DataSource = animals;
-
-            // positioning
-            dataGrid.Dock = DockStyle.None;
-            dataGrid.Location = new System.Drawing.Point(100, 150);
-            dataGrid.Size = new System.Drawing.Size(900, 250);
-
-            // restrictions
+            dataGrid.Name = "dataGrid";
+            dataGrid.Dock = DockStyle.Fill;
             dataGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGrid.ReadOnly = true;
-
-            dataGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
-
-
-            // row selection to populate input fields 
+            dataGrid.AllowUserToAddRows = false;
+            dataGrid.AllowUserToDeleteRows = false;
             dataGrid.MultiSelect = false;
-            dataGrid.SelectionChanged += DataGrid_SelectionChanged; //event
-
-
-            this.Controls.Add(dataGrid);
-
-            dataGrid.BringToFront();
-
+            dataGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dataGrid.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
+            dataGrid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells;
+            dataGrid.RowHeadersVisible = false;
+            // DisplayName attributes on Animal provide the seven required column headers.
+            dataGrid.DataBindingComplete += dataGrid_DataBindingComplete;
+            dataGrid.CellClick += dataGrid_CellClick;
+            pnlAnimalsView.Controls.Add(dataGrid);
         }
 
-        // RENAMING COLUMNS MUST BE DONE INSIDE THIS EVENT BEAUSE OTEHRWISE THE DATA GRID DOESN'T ACTUALLY EXIST WHEN THIS LINE IS CALLED
-        // THIS EVENT IS TRIGGERED EXPLICITLY WHEN THE GRID DOES EXIST
-        private void dataGridView1_DataBindingComplete(object sender, EventArgs e)
+        // Keeps records in file order instead of allowing header clicks to sort them.
+        private void dataGrid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
-            dataGrid.Columns["Id"].HeaderText = "Animal ID";
-        }
-
-        // event for row selection
-        private void DataGrid_SelectionChanged(object sender, EventArgs e)
-        {
-            // check that a row is selected
-            if (dataGrid.SelectedRows.Count > 0)
+            foreach (DataGridViewColumn column in dataGrid.Columns)
             {
-                Animal selected = dataGrid.SelectedRows[0].DataBoundItem as Animal;
+                column.SortMode = DataGridViewColumnSortMode.NotSortable;
+            }
+        }
+
+        // Only a user's row click opens the editor; programmatic refreshes do not enter edit mode.
+        private void dataGrid_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.RowIndex < dataGrid.Rows.Count)
+            {
+                Animal selected = dataGrid.Rows[e.RowIndex].DataBoundItem as Animal;
                 LoadForEditing(selected);
             }
-
-            // exception handeling not neccessary, as we are loading in information we know must
-            // exist, since the user selected it.
         }
 
-
-        // Connection point for Victor's grid refresh after a successful Add or Update.
+        // Loads a fresh snapshot, clears selection and reports skipped lines once per load.
         private bool RefreshAnimals()
         {
-            List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
-            dataGrid.DataSource = animals;
-
-            skippedLines = 0;
-            return true;
+            try
+            {
+                // Read first so a failed reload leaves the currently displayed records available.
+                List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+                dataGrid.DataSource = animals;
+                dataGrid.ClearSelection();
+                dataGrid.CurrentCell = null;
+                ShowMessage("Loaded " + animals.Count + " animals." + SkippedMessage());
+                return true;
+            }
+            catch (IOException ex)
+            {
+                ShowFileError(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ShowFileError(ex);
+            }
+            return false;
         }
 
         // Uses a foreach loop to find one exact ID, ignoring upper/lower case.
@@ -289,6 +290,8 @@ namespace BaobabRidge
             btnAdd.Enabled = true;
             btnSaveChanges.Enabled = false;
             lblClassification.Text = "Status and housing are calculated from the recovery score.";
+            dataGrid.ClearSelection();
+            dataGrid.CurrentCell = null;
             txtId.Focus();
         }
 

@@ -53,7 +53,7 @@ namespace BaobabRidge
             search.Controls.Add(btnSearch);
             layout.Controls.Add(search, 0, 1);
 
-            // Victor will add and configure his DataGridView in this reserved area.
+            // Victor's DataGridView fills this panel and resizes with the form.
             pnlAnimalsView.Name = "pnlAnimalsView";
             pnlAnimalsView.Dock = DockStyle.Fill;
             layout.Controls.Add(pnlAnimalsView, 0, 2);

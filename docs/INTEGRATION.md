@@ -1,42 +1,35 @@
-# Connecting the other members' work
+# Team integration notes
 
-Everyone uses the same Animal properties, AnimalRules methods, FileHandler instance and five input boxes.
+Everyone uses the same Animal properties, AnimalRules methods, FileHandler and five input boxes.
 
-| Member | Connection |
+| Owner | Existing connection |
 | --- | --- |
-| 1: Keanu / Add | Existing committed Add handler, IDExists and AddAnimal are retained |
-| 2: Victor / View | Implement the DataGridView in pnlAnimalsView, startup loading, RefreshAnimals and row selection |
-| 3: Update | Uses FileHandler.UpdateAnimal and named events in MainForm |
-| 4: Delete/Summary | Add the remaining controls and FileHandler methods; reuse the current-file loader and form helpers |
+| Keanu / Add | btnAdd_Click validates, calls AddAnimal, clears the editor and refreshes |
+| Victor / View | ConfigureGrid sets up the grid; RefreshAnimals loads data and handles file errors |
+| Renier / Update | Search and grid CellClick call LoadForEditing; Save calls UpdateAnimal, clears and refreshes |
+| Dirk / Delete | Existing handler uses dataGrid.CurrentRow, confirms removal, calls DeleteAnimal and refreshes |
+| Dirk / Summary | Prototype is on feature/generate-summary and still needs completion/merge |
 
-## Shared methods
+## Grid and editor
 
-`AnimalRules.TryCreate(id, name, species, ageText, scoreText, out animal, out invalidField, out errorMessage)` is the shared input check. It calls `ClassifyAnimal`. Add must separately reject IDs already in the latest file. Update preserves the original ID.
+- dataGrid is created once and docked inside pnlAnimalsView.
+- Animal DisplayName attributes supply the exact seven headers.
+- Columns cannot be sorted, preserving file order. Direct grid edits/add/delete are disabled.
+- Only CellClick opens an edit. Programmatic refresh does not reopen the first row.
+- RefreshAnimals reads a fresh list before replacing the grid source, clears selection and reports the skipped count. It returns false after friendly I/O/access feedback.
+- ClearEditor empties inputs, clears grid selection/current cell and restores Add mode.
+- Add/Update/Delete already call RefreshAnimals. Keep that connection when completing other features.
 
-`FileHandler.ReadAnimals(out skippedLines)` returns a List<Animal> in file order. It creates an empty missing file and counts malformed lines. It does not display messages itself.
+## Shared rules and file methods
 
-`FileHandler.UpdateAnimal(originalId, replacement)` replaces one matching record using the latest file contents and fails on missing/ambiguous IDs. Keep that method signature when integrating.
+TryCreate validates and classifies the supplied strings. Add separately checks uniqueness. Update uses the saved original ID and does not perform Add's uniqueness check.
 
-`Animal.ToString()` returns exactly one pipe-separated record. Add should reuse it. Do not duplicate the score bands or the record format in feature handlers.
+ReadAnimals returns a List<Animal> in file order plus a skipped-line count. Animal.ToString returns the seven pipe-separated fields. Keep the same properties/format for all features.
 
-`RefreshAnimals()` is now an empty integration hook for Victor. It returns true until he implements the actual grid refresh; existing Add and Update calls remain in place. Victor's implementation should return false on a load failure. `ClearEditor()` resets edit state and inputs. `ShowMessage()` puts feedback in the top label.
+UpdateAnimal reads current raw lines, finds exactly one ID, changes its line and writes a same-folder temporary file. It moves the completed file over the original after writing succeeds and cleans up on failure. Add and Delete retain their existing owner implementations.
 
-## File path and errors
+FileHandler owns the path beside the executable. New file operations must use the form's friendly exception-handling pattern rather than showing raw stack traces.
 
-FileHandler owns the path `Path.Combine(AppContext.BaseDirectory, "animals.txt")`. The test constructor accepts a temporary path; the normal application never needs a user-specific path.
+## Completing Summary
 
-FileHandler lets storage exceptions reach the form. Every new file operation must be called inside the same try/catch pattern used by Search and Save. Do not report success or clear inputs after a failed write.
-
-Add appends rather than rewrites. Delete should preserve every other record and use a safe temporary-file replacement. Summary uses current file data and writes summary.txt beside the executable.
-
-## Form integration
-
-Keep Keanu's completed `btnAdd_Click`, `IDExists` and `AddAnimal` methods. MainForm is partial, so Victor can place view handlers in `MainForm.View.cs` if useful. Coordinate edits to the shared Designer file and avoid declaring the same method twice.
-
-Victor's [DataGridView handoff](VICTOR-DATAGRID.md) identifies the blank panel, startup hook, refresh hook and editor method. The existing ReadAnimals/TryReadAnimal helpers are retained because Search and Update depend on them; they do not display a grid.
-
-Delete must require a selected row and a Yes/No confirmation naming the ID and animal. After success, clear the editor if the deleted ID matches editingId, then refresh. Cancelling changes nothing.
-
-Summary needs visible labels or read-only textboxes, all five status counts, invariant-culture averages, N/A when empty and the exact report layout from the brief.
-
-Before submission, review all five features from a fresh clone, complete the member details, verify branch/PR requirements and make sure the GitHub main version matches the demo.
+Merge current main into the Summary branch and resolve imports/layout using the completed grid/editor connections. The prototype uses CultureInfo, so retain the appropriate System.Globalization import in the file containing its completed handler. Finish the report specification before merging it to main. Do not duplicate the classification bands or create a separate Animal type.
