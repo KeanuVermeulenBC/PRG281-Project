@@ -154,29 +154,54 @@ namespace BaobabRidge
             ShowMessage("Editor cleared. Select an animal or search by Animal ID.");
         }
 
-        // Calculates the first summary figures from the animals currently in animals.txt.
+        // Calculates the full summary, shows it on the form and saves it to summary.txt.
         private void btnGenerateSummary_Click(object sender, EventArgs e)
         {
+            string[] statusNames = { "Status 1", "Status 2", "Status 3", "Status 4", "Status 5" };
+
             try
             {
                 List<Animal> animals = fileHandler.ReadAnimals(out skippedLines);
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"); 
+                string summaryText;
 
-                int totalAnimals = animals.Count;
-                double totalAge = 0;
-                foreach (Animal animal in animals)
+                if (animals.Count == 0)
                 {
-                    totalAge += animal.Age;
+                    summaryText = "Generated: " + timestamp + Environment.NewLine
+                        + "No animal data available.";
+                }
+                else
+                {
+                    double totalAge = 0;
+                    double totalScore = 0;
+                    int[] statusCounts = new int[statusNames.Length];
+
+                    foreach (Animal animal in animals)
+                    {
+                        totalAge += animal.Age;
+                        totalScore += animal.RecoveryScore;
+                        for (int i = 0; i < statusNames.Length; i++)
+                        {
+                            if (animal.Status == statusNames[i])
+                            {
+                                statusCounts[i]++;
+                            }
+                        }
+                    }
+
+                    summaryText = "Generated: " + timestamp + Environment.NewLine
+                        + "Total animals: " + animals.Count + Environment.NewLine
+                        + "Average age: " + (totalAge / animals.Count).ToString("0.00", CultureInfo.InvariantCulture) + Environment.NewLine
+                        + "Average recovery score: " + (totalScore / animals.Count).ToString("0.00", CultureInfo.InvariantCulture);
+                    for (int i = 0; i < statusNames.Length; i++)
+                    {
+                        summaryText += Environment.NewLine + statusNames[i] + ": " + statusCounts[i];
+                    }
                 }
 
-                double averageAge = 0;
-                if (totalAnimals > 0)
-                {
-                    averageAge = totalAge / totalAnimals;
-                }
-
-                txtSummary.Text = "Total animals: " + totalAnimals + Environment.NewLine
-                    + "Average age: " + averageAge.ToString("0.0", CultureInfo.InvariantCulture);
-                ShowMessage("Summary generated." + SkippedMessage());
+                txtSummary.Text = summaryText;
+                fileHandler.SaveSummary(summaryText);
+                ShowMessage("Summary generated and saved to summary.txt." + SkippedMessage());
             }
             catch (IOException ex)
             {
@@ -242,13 +267,13 @@ namespace BaobabRidge
                 ShowMessage("The animal was deleted, but the grid could not reload. Check the file and click Reload.");
             }
         }
-        // Reads the ID and name of the single selected grid row; Victor's grid is the only thing this depends on.
+        // Finds the animals grid anywhere on the form and reads the single selected row.
         private bool TryGetSelectedAnimal(out string id, out string name)
         {
-            id = "";
-            name = "";
+            id = string.Empty;
+            name = string.Empty;
 
-            DataGridView grid = pnlAnimalsView.Controls.OfType<DataGridView>().FirstOrDefault();
+            DataGridView grid = FindGrid(this);
             if (grid == null || grid.SelectedRows.Count != 1)
             {
                 return false;
@@ -261,13 +286,33 @@ namespace BaobabRidge
                 id = animal.Id;
                 name = animal.Name;
             }
-            else if (grid.Columns.Contains("Id") && grid.Columns.Contains("Name"))
+            else
             {
-                id = Convert.ToString(row.Cells["Id"].Value);
-                name = Convert.ToString(row.Cells["Name"].Value);
+                // Fallback for a grid filled by hand: uses the first two cells (ID, then Name).
+                id = Convert.ToString(row.Cells[0].Value);
+                name = Convert.ToString(row.Cells[1].Value);
             }
 
-            return id != "";
+            return id != string.Empty;
+        }
+
+        // Looks through all controls (including nested ones) for the first DataGridView.
+        private DataGridView FindGrid(Control parent)
+        {
+            foreach (Control child in parent.Controls)
+            {
+                DataGridView grid = child as DataGridView;
+                if (grid != null)
+                {
+                    return grid;
+                }
+                DataGridView nested = FindGrid(child);
+                if (nested != null)
+                {
+                    return nested;
+                }
+            }
+            return null;
         }
 
         // Returns to Add mode; Add and Delete can reuse this after successful changes.

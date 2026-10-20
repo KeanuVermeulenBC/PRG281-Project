@@ -239,5 +239,11 @@ namespace BaobabRidge
             lines.RemoveAt(matchingIndex);
             File.WriteAllLines(filePath, lines);
         }
+        // Writes the summary text to summary.txt in the same folder as animals.txt.
+        public void SaveSummary(string summaryText)
+        {
+            string summaryPath = Path.Combine(Path.GetDirectoryName(filePath), "summary.txt");
+            File.WriteAllText(summaryPath, summaryText, new UTF8Encoding(false));
+        }
     }
 }
